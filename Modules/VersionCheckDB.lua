@@ -6,10 +6,10 @@ local VersionCheckDB = QuestieLoader:CreateModule("VersionCheckDB")
 ---@return string? message
 function VersionCheckDB.GetRequiredContract()
     local getMetadata = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
-    local value = getMetadata and getMetadata("Questie", "X-QuestieDB-Contract")
+    local value = getMetadata and getMetadata("DevsQuestTracker", "X-QuestieDB-Contract")
     local required = type(value) == "string" and value:match("^[1-9][0-9]*$") and tonumber(value)
     if not required or required == math.huge or required % 1 ~= 0 then
-        return nil, "Questie's TOC has a missing or invalid X-QuestieDB-Contract. Reinstall Questie."
+        return nil, "DeV's Quest Tracker has a missing or invalid X-QuestieDB-Contract. Reinstall DeV's Quest Tracker."
     end
     return required
 end

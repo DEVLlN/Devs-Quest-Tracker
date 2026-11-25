@@ -58,17 +58,17 @@ function Tutorial.CreateChooseObjectiveTypeFrame()
     customText:SetPoint("TOP", 0, -54)
 
     local onlyQuestieImage = CreateFrame("Button", nil, baseFrame)
-    onlyQuestieImage:SetNormalTexture("Interface\\Addons\\Questie\\Modules\\Tutorial\\onlyQuestie.blp")
+    onlyQuestieImage:SetNormalTexture("Interface\\Addons\\DevsQuestTracker\\Modules\\Tutorial\\onlyQuestie.blp")
     onlyQuestieImage:SetSize(220, 220)
     onlyQuestieImage:SetPoint("TOPLEFT", 30, -112)
 
     local pdfQuestImage = CreateFrame("Button", nil, baseFrame)
-    pdfQuestImage:SetNormalTexture("Interface\\Addons\\Questie\\Modules\\Tutorial\\pfQuest.blp")
+    pdfQuestImage:SetNormalTexture("Interface\\Addons\\DevsQuestTracker\\Modules\\Tutorial\\pfQuest.blp")
     pdfQuestImage:SetSize(220, 220)
     pdfQuestImage:SetPoint("TOP", 0, -112)
 
     local onlyBlizzardImage = CreateFrame("Button", nil, baseFrame)
-    onlyBlizzardImage:SetNormalTexture("Interface\\Addons\\Questie\\Modules\\Tutorial\\onlyBlizzard.blp")
+    onlyBlizzardImage:SetNormalTexture("Interface\\Addons\\DevsQuestTracker\\Modules\\Tutorial\\onlyBlizzard.blp")
     onlyBlizzardImage:SetSize(220, 220)
     onlyBlizzardImage:SetPoint("TOPRIGHT", -30, -112)
 

@@ -14,6 +14,8 @@ local TrackerQuestTimers = QuestieLoader:ImportModule("TrackerQuestTimers")
 ---@type l10n
 local l10n = QuestieLoader:ImportModule("l10n")
 
+local PINNED_GROUP_KEY = "Questie:PinnedQuests"
+
 ---@param questId QuestId
 ---@param quest TrackerQuest
 ---@param complete number
@@ -25,76 +27,41 @@ local function _IsQuestShown(questId, quest, complete)
         or (not Questie.db.profile.autoTrackQuests and Questie.db.char.TrackedQuests[questId])) and true or false
 end
 
----Collapsed quests and quests in collapsed zones hide their quest item buttons.
 ---@param sortedQuestIds QuestId[]
 ---@param questDetails table<QuestId, {quest: TrackerQuest, zoneName: string}>
----@return boolean
-function QuestSection.HasVisibleQuestItems(sortedQuestIds, questDetails)
-    for _, questId in ipairs(sortedQuestIds) do
-        local quest = questDetails[questId].quest
-        local complete = quest:IsComplete()
-        if _IsQuestShown(questId, quest, complete)
-            and (not Questie.db.char.collapsedZones[questDetails[questId].zoneName])
-            and (not Questie.db.char.collapsedQuests[questId]) then
-            local isMinimizable = (complete == 1 or complete == -1) or (#quest.Objectives == 0 and quest.isComplete == true)
-            local timedQuest = quest.trackTimedQuest
-            local autoCollapsed = Questie.db.profile.collapseCompletedQuests and isMinimizable and (not timedQuest)
-            if (not autoCollapsed) and #TrackerUtils.GetQuestItemIds(quest, complete) > 0 then
-                return true
-            end
-        end
-    end
-    return false
-end
-
----@param sortedQuestIds QuestId[]
----@param questDetails table<QuestId, {quest: TrackerQuest, zoneName: string}>
-function QuestSection.Draw(sortedQuestIds, questDetails)
+---@param pinned boolean? Whether to draw quests in the separate pinned group
+function QuestSection.Draw(sortedQuestIds, questDetails, pinned)
     local margins = TrackerLayout.GetMargins()
-    local objectiveMarginLeft
     local objectiveColor = Questie.db.profile.trackerColorObjectives
-    local trackerBaseFrame = TrackerLayout.GetBaseFrame()
 
     local line
-    local firstQuestInZone = false
-    local zoneCheck
-
-    local secondaryButton = false
+    local currentGroup
+    local groupCollapsed = false
 
     for _, questId in ipairs(sortedQuestIds) do
         if (not questId) then
             break
         end
 
-        -- reset objectiveMarginLeft for each quest, it can be increased if there are quest items
-        objectiveMarginLeft = margins.objective
-
         ---@type TrackerQuest
         local quest = questDetails[questId].quest
         local complete = quest:IsComplete()
-        local zoneName = questDetails[questId].zoneName
+        local groupKey = pinned and PINNED_GROUP_KEY or questDetails[questId].zoneName
 
         TrackerQuestTimers:UpdateAndGetRemainingTime(quest, nil, true)
         local timedQuest = quest.trackTimedQuest
 
         if _IsQuestShown(questId, quest, complete) then
-            -- Add Quest Zones
-            if zoneCheck ~= zoneName then
-                firstQuestInZone = true
-            end
-
-            if firstQuestInZone then
-                line = LineBuilder.AddHeader({key = zoneName, text = zoneName})
-                if (not line) then
+            if currentGroup ~= groupKey then
+                local title = pinned and l10n("Pinned Quests") or groupKey
+                line, groupCollapsed = LineBuilder.AddHeader({key = groupKey, text = title, questZone = not pinned})
+                if not line then
                     break
                 end
-
-                firstQuestInZone = false
-                zoneCheck = zoneName
+                currentGroup = groupKey
             end
 
-            -- Add quest
-            if (not Questie.db.char.collapsedZones[zoneName]) then
+            if not groupCollapsed then
                 -- Set Completion Text
                 local completionText = TrackerUtils:GetCompletionText(quest)
 
@@ -142,7 +109,7 @@ function QuestSection.Draw(sortedQuestIds, questDetails)
                     clickMode = "quest",
                     target = quest,
                     collapseId = quest.Id,
-                    zoneKey = zoneName,
+                    zoneKey = groupKey,
                 })
                 if (not line) then
                     break
@@ -153,23 +120,14 @@ function QuestSection.Draw(sortedQuestIds, questDetails)
                 -- Adds the AI_VoiceOver Play Buttons
                 line.playButton:SetPlayButton(questId)
 
-                local shouldContinue = TrackerUtils.AddQuestItemButtons(quest, complete, line, margins.itemButtonSize, trackerBaseFrame, isMinimizable,
-                    function()
-                        if (not Questie.db.char.collapsedQuests[quest.Id]) then
-                            LineBuilder.IndentTitle(line, margins.itemButtonSize)
-                        end
+                local isCompletionText = ((complete == 1 and completionText ~= nil and #quest.Objectives == 0)
+                    or (quest.isComplete == true and completionText ~= nil)) and objectiveColor ~= "minimal"
+                local shouldContinue, rightInset = TrackerUtils.AddQuestItemButtons(quest, complete, line, isMinimizable, not isCompletionText)
+                line.questItemInset = rightInset
+                TrackerLayout.TrackLineWidth(line.label:GetUnboundedStringWidth() + margins.quest + rightInset)
 
-                        secondaryButton = true
-                    end)
-
-                if (not shouldContinue) then
-                    -- We exceeded the button pool
-                    break
-                end
-
-                -- Indent the objectives behind a secondary quest item button
-                if secondaryButton then
-                    objectiveMarginLeft = objectiveMarginLeft + margins.itemButtonSize
+                if not shouldContinue then
+                    break -- We exceeded the button pool
                 end
 
                 -- Add Quest Timers (if applicable) - always shown for timed quests, even when collapsed
@@ -192,7 +150,7 @@ function QuestSection.Draw(sortedQuestIds, questDetails)
                             text = timerText,
                             target = quest,
                             activeTimer = activeTimer,
-                            marginLeft = objectiveMarginLeft,
+                            rightInset = rightInset,
                         })
                         if (not line) then
                             break
@@ -215,13 +173,11 @@ function QuestSection.Draw(sortedQuestIds, questDetails)
                                     clickMode = "quest",
                                     target = quest,
                                     objective = objective,
-                                    marginLeft = objectiveMarginLeft,
+                                    rightInset = rightInset,
                                 })
                                 if (not line) then
                                     break
                                 end
-
-                                line.questHasSecondaryQIB = secondaryButton
                             end
                         end
 
@@ -229,7 +185,6 @@ function QuestSection.Draw(sortedQuestIds, questDetails)
                         -- Some quests have "Blizzard Completion Text" that is displayed to show where to go next or where to turn in the quest.
                     elseif (complete == 1 or complete == -1 or quest.isComplete == true) and (not (timedQuest and isMinimizable and Questie.db.profile.collapseCompletedQuests)) then
                         local objectiveText
-                        local isCompletionText = ((complete == 1 and completionText ~= nil and #quest.Objectives == 0) or (quest.isComplete == true and completionText ~= nil)) and objectiveColor ~= "minimal"
                         if isCompletionText then
                             -- Blizzard Completion text for single objectives
                             objectiveText = completionText
@@ -243,25 +198,16 @@ function QuestSection.Draw(sortedQuestIds, questDetails)
                             text = objectiveText or "",
                             clickMode = "quest",
                             target = quest,
-                            marginLeft = objectiveMarginLeft,
+                            rightInset = rightInset,
                         })
                         if (not line) then
                             break
                         end
-
-                        -- Hide the Secondary Quest Item Button. There are some quests with usable items after a quest is completed I
-                        -- have yet to encounter a completed quest where both a Primary and Secondary "usable" Quest Item was needed.
-                        if isCompletionText and secondaryButton then
-                            line.altButton:SetParent(UIParent)
-                            line.altButton:Hide()
-                        end
                     end
                 end
 
-                LineBuilder.FinishEntry(line)
+                LineBuilder.FinishEntry(line, true)
             end
-
-            secondaryButton = false
         end
     end
 end

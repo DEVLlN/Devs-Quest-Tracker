@@ -48,7 +48,7 @@ local function UpdateTooltip(self)
     tooltip:SetOwner(self, "ANCHOR_NONE");
     tooltip:ClearLines()
     tooltip:SetPoint("TOPRIGHT", self, "BOTTOMRIGHT", 0, 0);
-    tooltip:AddDoubleLine(Questie:Colorize("Questie", 'gold'), Questie:Colorize(QuestieLib:GetAddonVersionString(), 'gray'))
+    tooltip:AddDoubleLine(Questie:Colorize("DeV's Quest Tracker", 'gold'), Questie:Colorize(QuestieLib:GetAddonVersionString(), 'gray'))
     tooltip:AddLine(" ")
     local toggleLabel = Questie.db.profile.enabled and l10n('Hide Questie') or l10n('Show Questie')
     tooltip:AddDoubleLine(Questie:Colorize(l10n('Left Click'), 'lightBlue'), Questie:Colorize(toggleLabel, 'white'))

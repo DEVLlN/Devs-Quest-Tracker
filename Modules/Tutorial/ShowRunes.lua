@@ -38,7 +38,7 @@ function Tutorial.ShowRunes()
     customText:SetPoint("TOP", 0, -35)
 
     local showRunesIcon = baseFrame:CreateTexture(nil, "OVERLAY")
-    showRunesIcon:SetTexture("Interface\\Addons\\Questie\\Icons\\sod_rune.blp")
+    showRunesIcon:SetTexture("Interface\\Addons\\DevsQuestTracker\\Icons\\sod_rune.blp")
     showRunesIcon:SetSize(30, 30)
     showRunesIcon:SetPoint("TOP", 0, -85)
 

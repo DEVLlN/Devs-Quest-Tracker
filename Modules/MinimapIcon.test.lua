@@ -150,7 +150,7 @@ describe("MinimapIcon", function()
             assert.spy(badge.SetPoint).was.called_with(badge, "TOPRIGHT", button, "TOPRIGHT", -1, -1)
             assert.are_same({atlas = "common-icon-redx"}, selectedIcon)
             assert.is_true(shown)
-            assert.are_same("Interface\\Addons\\Questie\\Icons\\questie.png", dataObject.icon)
+            assert.are_same("Interface\\Icons\\INV_Misc_Map_01", dataObject.icon)
         end)
 
         it("uses the warning image and yellow tooltip styling for warnings", function()

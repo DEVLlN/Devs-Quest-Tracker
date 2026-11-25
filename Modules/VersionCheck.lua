@@ -4,8 +4,8 @@ QuestieLoader:StampLoadBoundary()
 local addonName, _ = ...
 
 -- Check addon is not renamed to avoid conflicts in global name space.
-if addonName ~= "Questie" then
-    local msg = {"You have renamed Questie addon.", "This is restricted to avoid issues.", "Please remove '" .. addonName .. "'",
+if addonName ~= "DevsQuestTracker" then
+    local msg = {"DeV's Quest Tracker must be installed in the DevsQuestTracker folder.", "This is restricted to avoid issues.", "Please remove '" .. addonName .. "'",
         "and reinstall the original version."}
     StaticPopupDialogs["QUESTIE_ADDON_NAME_ERROR"] = {
         text = "|cffff0000ERROR|r\n" .. msg[1] .. "\n" .. msg[2] .. "\n\n" .. msg[3] .. "\n" .. msg[4],
@@ -29,20 +29,20 @@ end
 
 if Questie then
     C_Timer.After(4, function()
-        error("ERROR!! -> Questie already loaded! Please only have one Questie installed!")
+        error("ERROR!! -> Another Questie-compatible addon is enabled. Disable stock Questie before enabling DeV's Quest Tracker.")
         for _ = 1, 10 do
-            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000ERROR!!|r -> Questie already loaded! Please only have one Questie installed!")
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000ERROR!!|r -> Another Questie-compatible addon is enabled. Disable stock Questie before enabling DeV's Quest Tracker.")
         end
     end);
-    error("ERROR!! -> Questie already loaded! Please only have one Questie installed!")
-    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000ERROR!!|r -> Questie already loaded! Please only have one Questie installed!")
+    error("ERROR!! -> Another Questie-compatible addon is enabled. Disable stock Questie before enabling DeV's Quest Tracker.")
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000ERROR!!|r -> Another Questie-compatible addon is enabled. Disable stock Questie before enabling DeV's Quest Tracker.")
     Questie = {}
     return
 end
 
 --Initialized below
 ---@class Questie : AceAddon, AceConsole-3.0, AceEvent-3.0, AceTimer-3.0, AceComm-3.0, AceBucket-3.0
-Questie = LibStub("AceAddon-3.0"):NewAddon("Questie", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0", "AceComm-3.0", "AceBucket-3.0")
+Questie = LibStub("AceAddon-3.0"):NewAddon("DeV's Quest Tracker", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0", "AceComm-3.0", "AceBucket-3.0")
 
 Questie.API = {
     isReady = false,

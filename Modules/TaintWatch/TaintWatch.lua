@@ -16,7 +16,7 @@ local NOTE_COALESCE_SECONDS = 1
 local NOTE_COALESCE_DEPTH = 3
 local POLL_INTERVAL = 1
 local STACK_LEVELS = 25
-local QUESTIE = "Questie"
+local QUESTIE = "DevsQuestTracker"
 
 -- Blizzard events that show what the player was doing around Questie's actions
 local BREADCRUMB_EVENTS = {
@@ -272,13 +272,13 @@ function _TaintWatch.OnEvent(_, event, ...)
         TaintWatch.Note("[event] " .. event, type(detail) == "number" and detail or nil)
     elseif event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
         local addonName, func = ...
-        if addonName == "Questie" then
+        if addonName == "DevsQuestTracker" then
             _TaintWatch.Report(event .. ":" .. tostring(func), event .. " " .. tostring(func))
         end
     elseif event == "LUA_WARNING" then
         for i = 1, select("#", ...) do
             local text = select(i, ...)
-            if type(text) == "string" and text:find("Questie", 1, true) then
+            if type(text) == "string" and text:find("DevsQuestTracker", 1, true) then
                 -- Strip numbers so repeats of the same warning are reported once
                 _TaintWatch.Report("warning:" .. text:gsub("%d+", ""), "LUA_WARNING " .. text)
                 return
@@ -314,7 +314,7 @@ function _TaintWatch.GetOtherAddons()
     if C_AddOns and C_AddOns.GetNumAddOns then
         for i = 1, C_AddOns.GetNumAddOns() do
             local name = C_AddOns.GetAddOnInfo(i)
-            if name and C_AddOns.IsAddOnLoaded(i) and name ~= "Questie" then
+            if name and C_AddOns.IsAddOnLoaded(i) and name ~= "DevsQuestTracker" then
                 table.insert(names, name)
             end
         end

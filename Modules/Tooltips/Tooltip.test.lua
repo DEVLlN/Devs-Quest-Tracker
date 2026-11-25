@@ -1160,7 +1160,7 @@ describe("Tooltip", function()
 
             assert.spy(QuestieLib.GetDifficultyColorPercent).was.called_with(QuestieLib, 2, 94414)
             assert.are.same({
-                "|TInterface\\Addons\\Questie\\Icons\\tooltip_available.png:14:14:0:0:32:32:0:32:0:32:192:192:192|tQuest Name",
+                "|TInterface\\Addons\\DevsQuestTracker\\Icons\\tooltip_available.png:14:14:0:0:32:32:0:32:0:32:192:192:192|tQuest Name",
             }, tooltip)
         end)
 

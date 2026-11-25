@@ -7,7 +7,7 @@ local QuestieCompat = QuestieLoader:ImportModule("QuestieCompat")
 ---@type Expansions
 local Expansions = QuestieLoader:ImportModule("Expansions")
 
-local SOURCE_ICON = {texture = "Interface\\AddOns\\Questie\\Icons\\green_plus.png"}
+local SOURCE_ICON = {texture = "Interface\\AddOns\\DevsQuestTracker\\Icons\\green_plus.png"}
 local PROJECT_NAMES = {
     "WOW_PROJECT_MAINLINE", "WOW_PROJECT_CLASSIC", "WOW_PROJECT_BURNING_CRUSADE_CLASSIC",
     "WOW_PROJECT_WRATH_CLASSIC", "WOW_PROJECT_CATACLYSM_CLASSIC", "WOW_PROJECT_MISTS_CLASSIC",
@@ -111,7 +111,7 @@ local function _ProviderDetails(provider)
         {message = "Read mode: %s", args = {_Value(provider.readMode)}},
         {message = "Provider contracts: %s to %s; Questie requires %s", args = {
             _Value(provider.minSupportedContract), _Value(provider.contractVersion),
-            _Value(QuestieCompat.GetAddOnMetadata("Questie", "X-QuestieDB-Contract")),
+            _Value(QuestieCompat.GetAddOnMetadata("DevsQuestTracker", "X-QuestieDB-Contract")),
         }},
     }
     if statusError then

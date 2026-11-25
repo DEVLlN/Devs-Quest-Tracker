@@ -372,7 +372,7 @@ describe("QuestieInit", function()
                 assert.are_same("questiedb.source-mode", issues[1].id)
                 assert.are_same("questiedb.source-load", issues[2].id)
                 assert.are_same("Client: %s (build %s, %s)", issues[1].details[1].message)
-                assert.are_same("Interface\\AddOns\\Questie\\Icons\\green_plus.png", QuestieStatus.GetBadgeIssue().icon.texture)
+                assert.are_same("Interface\\AddOns\\DevsQuestTracker\\Icons\\green_plus.png", QuestieStatus.GetBadgeIssue().icon.texture)
                 table.insert(callOrder, "UI registered")
                 return true
             end

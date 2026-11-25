@@ -799,11 +799,11 @@ describe("QuestieProfilerReport", function()
         end)
 
         it("keeps ThreadLib job identities intact", function()
-            AddThreadJobEntry("ThreadLib job: [Interface/AddOns/Questie/Modules/QuestieInit.lua]:395", 600, 3, 40)
+            AddThreadJobEntry("ThreadLib job: [Interface/AddOns/DevsQuestTracker/Modules/QuestieInit.lua]:395", 600, 3, 40)
 
             local report = BuildReport({grouped = true})
 
-            assert.are_same({"ThreadLib job: [Interface/AddOns/Questie/Modules/QuestieInit.lua]:395"}, RowKeys(report))
+            assert.are_same({"ThreadLib job: [Interface/AddOns/DevsQuestTracker/Modules/QuestieInit.lua]:395"}, RowKeys(report))
         end)
 
         it("keeps ThreadLib job and resume counts when folding", function()

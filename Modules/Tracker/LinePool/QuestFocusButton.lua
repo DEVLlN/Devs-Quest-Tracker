@@ -16,7 +16,7 @@ local QuestieCombatQueue = QuestieLoader:ImportModule("QuestieCombatQueue")
 ---@type QuestieCompat
 local QuestieCompat = QuestieLoader:ImportModule("QuestieCompat")
 
-local ICON_PATH = "Interface\\AddOns\\Questie\\Icons\\"
+local ICON_PATH = "Interface\\AddOns\\DevsQuestTracker\\Icons\\"
 
 QuestFocusButton.TEXTURES = {
     incomplete = ICON_PATH .. "poi_incomplete.png",
@@ -24,12 +24,6 @@ QuestFocusButton.TEXTURES = {
     complete = ICON_PATH .. "poi_complete.png",
     completeFocused = ICON_PATH .. "poi_complete_focused.png",
 }
-
----Same size as the quest focus button slot in TrackerLayout.
----@return number
-local function _GetButtonSize()
-    return Questie.db.profile.trackerFontSizeQuest + 3
-end
 
 ---The quest this button super tracked itself, so it stays focused while following Blizzard is disabled.
 ---@type QuestId?
@@ -117,9 +111,6 @@ function QuestFocusButton.New(index, parent)
             return
         end
 
-        local size = _GetButtonSize()
-        self:SetWidth(size)
-        self:SetHeight(size)
         local texture
         if isComplete then
             texture = isFocused and QuestFocusButton.TEXTURES.completeFocused or QuestFocusButton.TEXTURES.complete

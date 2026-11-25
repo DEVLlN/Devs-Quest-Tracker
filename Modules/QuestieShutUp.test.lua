@@ -47,7 +47,7 @@ describe("QuestieShutUp", function()
         end)
 
         it("should filter messages starting with the questie logo texture", function()
-            local result = QuestieShutUp.FilterFunc(nil, "CHAT_MSG_PARTY", "|TInterface\\Addons\\Questie\\Icons\\questie.png:0|t Some quest update", "SomePlayer")
+            local result = QuestieShutUp.FilterFunc(nil, "CHAT_MSG_PARTY", "|TInterface\\Icons\\INV_Misc_Map_01:0|t Some quest update", "SomePlayer")
 
             assert.is_true(result)
         end)

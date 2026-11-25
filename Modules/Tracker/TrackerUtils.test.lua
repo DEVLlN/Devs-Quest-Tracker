@@ -43,6 +43,7 @@ describe("TrackerUtils", function()
         Questie.db.char = {
             collapsedQuests = {},
             collapsedZones = {},
+            PinnedQuests = {},
         }
         CreateFrame.resetMockedFrames()
         local compat = QuestieLoader:ImportModule("QuestieCompat")
@@ -1646,6 +1647,20 @@ describe("TrackerUtils", function()
             assert.are.equal("Northshire Abbey", details[91741].zoneName)
             assert.are.equal(trackerQuests[91741], details[91741].quest)
             assert.is_nil(next(ActiveQuests.GetAll()))
+        end)
+
+        it("puts pinned quests in a separate group without losing their details", function()
+            Questie.db.char.PinnedQuests[2] = true
+            trackerQuests = {
+                [1] = {Id = 1, level = 2, zoneName = "Northshire Abbey", Objectives = {}, IsComplete = function() return 0 end},
+                [2] = {Id = 2, level = 3, zoneName = "Elwynn Forest", Objectives = {}, IsComplete = function() return 0 end},
+            }
+
+            local ids, details, pinnedIds = TrackerUtils:GetSortedQuestIds()
+
+            assert.are.same({1}, ids)
+            assert.are.same({2}, pinnedIds)
+            assert.are.equal(trackerQuests[2], details[2].quest)
         end)
 
         it("does not treat pending or zero-total objectives as completed", function()

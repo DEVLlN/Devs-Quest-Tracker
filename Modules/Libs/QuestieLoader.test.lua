@@ -32,7 +32,7 @@ describe("QuestieLoader", function()
         end
         -- WoW renders the path bracketed, which is what the loader parses.
         _G.debugstack = function()
-            return "[Interface/AddOns/Questie/" .. currentSourceFile .. "]:3: in main chunk\n"
+            return "[Interface/AddOns/DevsQuestTracker/" .. currentSourceFile .. "]:3: in main chunk\n"
         end
     end)
 
@@ -298,13 +298,13 @@ describe("QuestieLoader", function()
             AdvanceClock(3)
 
             _G.debugstack = function()
-                return "[Interface/AddOns/Questie/Modules/Foo.lua]:10: in function DoWork\n"
+                return "[Interface/AddOns/DevsQuestTracker/Modules/Foo.lua]:10: in function DoWork\n"
             end
             QuestieLoader:StampLoadBoundary()
             AdvanceClock(4)
 
             _G.debugstack = function()
-                return "[Interface/AddOns/Questie/Modules/Beta.lua]:3: in main chunk\n"
+                return "[Interface/AddOns/DevsQuestTracker/Modules/Beta.lua]:3: in main chunk\n"
             end
             QuestieLoader:CreateModule("Beta")
 
@@ -407,7 +407,7 @@ describe("QuestieLoader", function()
             -- An init routine or lazy import resolving a module at runtime, rather than a file registering
             -- itself. Stamping here would close Alpha's interval and charge what follows to the caller.
             _G.debugstack = function()
-                return "[Interface/AddOns/Questie/Modules/Beta.lua]:120: in function 'Initialize'\n"
+                return "[Interface/AddOns/DevsQuestTracker/Modules/Beta.lua]:120: in function 'Initialize'\n"
             end
             QuestieLoader:ImportModule("Beta")
 
@@ -419,7 +419,7 @@ describe("QuestieLoader", function()
             QuestieLoader:CreateModule("Alpha")
             AdvanceClock(40)
             _G.debugstack = function()
-                return "[Interface/AddOns/Questie/Modules/Beta.lua]:120: in function 'Initialize'\n"
+                return "[Interface/AddOns/DevsQuestTracker/Modules/Beta.lua]:120: in function 'Initialize'\n"
             end
             QuestieLoader:ImportModule("Beta")
             AdvanceClock(10)

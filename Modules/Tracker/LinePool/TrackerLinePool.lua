@@ -89,7 +89,8 @@ function TrackerLinePool.ResetLinesForChange()
         line.Recipe = nil
         line.trackTimedQuest = nil
         line.label.activeTimer = nil
-        line.questHasSecondaryQIB = false
+        line.endsQuestEntry = nil
+        line.questItemInset = 0
         if line.expandQuest then
             line.expandQuest.mode = nil
             line.expandQuest.questId = nil
@@ -151,7 +152,6 @@ end
 function TrackerLinePool.UpdateWrappedLineWidths(trackerLineWidth)
     local margins = TrackerLayout.GetMargins()
     local objectiveMarginLeft = margins.objective
-    local questItemButtonSize = margins.itemButtonSize
 
     -- Updates all the line.label widths in the linePool for wrapped text only
     for _, line in pairs(linePool) do
@@ -160,13 +160,9 @@ function TrackerLinePool.UpdateWrappedLineWidths(trackerLineWidth)
                 if line.label:GetNumLines() > 1 and line:GetHeight() > Questie.db.profile.trackerFontSizeObjective then
                     line.label:SetText(line.label:GetText())
 
-                    if line.altButton then
-                        line.label:SetWidth(trackerLineWidth - objectiveMarginLeft - questItemButtonSize)
-                        line:SetWidth(trackerLineWidth + questItemButtonSize)
-                    else
-                        line.label:SetWidth(trackerLineWidth - objectiveMarginLeft)
-                        line:SetWidth(trackerLineWidth)
-                    end
+                    local textWidth = trackerLineWidth - objectiveMarginLeft - (line.questItemInset or 0)
+                    line.label:SetWidth(math.max(1, textWidth))
+                    line:SetWidth(line.label:GetWidth() + objectiveMarginLeft)
 
                     line:SetHeight(line.label:GetStringHeight() + 2 + Questie.db.profile.trackerQuestPadding)
                     line.label:SetHeight(line:GetHeight() - 2 - Questie.db.profile.trackerQuestPadding)
@@ -244,8 +240,7 @@ function TrackerLinePool.HideUnusedLines()
             line.Recipe = nil
             line.Objective = nil
             line.Button = nil
-            line.altButton = nil
-            line.questHasSecondaryQIB = false
+            line.questItemInset = 0
             line.trackTimedQuest = nil
             line.label.activeTimer = nil
             line.expandQuest.mode = nil

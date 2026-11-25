@@ -142,13 +142,13 @@ function _MinimapIcon:CreateDataBrokerObject()
     local LDBDataObject = LibStub("LibDataBroker-1.1"):NewDataObject("Questie", {
         type = "data source",
         text = Questie.db.profile.ldbDisplayText,
-        icon = "Interface\\Addons\\Questie\\Icons\\questie.png",
+        icon = "Interface\\Icons\\INV_Misc_Map_01",
 
         OnClick = _MinimapIcon.OnClick,
 
         ---@param tooltip any
         OnTooltipShow = function (tooltip)
-            tooltip:AddDoubleLine(Questie:Colorize("Questie", 'gold'), Questie:Colorize(QuestieLib:GetAddonVersionString(), 'gray'))
+            tooltip:AddDoubleLine(Questie:Colorize("DeV's Quest Tracker", 'gold'), Questie:Colorize(QuestieLib:GetAddonVersionString(), 'gray'))
             _AddStatusLines(tooltip)
             if not Questie.started then
                 return

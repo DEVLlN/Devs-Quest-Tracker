@@ -529,6 +529,18 @@ function TrackerMenu:GetMenuForQuest(quest)
 
     tinsert(menu, { text = coloredQuestName, isTitle = true })
 
+    local questId = quest.Id
+    local pinned = Questie.db.char.PinnedQuests[questId]
+    tinsert(menu, {
+        text = pinned and l10n("Unpin Quest") or l10n("Pin Quest to Top"),
+        func = function()
+            if TrackerData.ContainsQuest(questId) and QuestieTracker.IsTrackedByQuestie(questId) then
+                Questie.db.char.PinnedQuests[questId] = not pinned or nil
+                QuestieCombatQueue:Queue(function() QuestieTracker:Update() end)
+            end
+        end,
+    })
+
     TrackerMenu.addObjectiveOption(menu, subMenu, quest)
     if TrackerUtils.CanShareQuest(quest.Id) then
         TrackerMenu.addShareQuestOption(menu, quest)

@@ -320,9 +320,9 @@ function _QuestieFrame.UpdateTexture(self, texture)
 
     if self.data.StarterType then
         if self.data.StarterType == "itemFromMonster" or self.data.StarterType == "itemFromObject" then
-            self.overlayTexture:SetTexture("Interface/AddOns/Questie/Icons/loot_overlay.png")
+            self.overlayTexture:SetTexture("Interface/AddOns/DevsQuestTracker/Icons/loot_overlay.png")
         elseif self.data.StarterType == "Object" then
-            self.overlayTexture:SetTexture("Interface/AddOns/Questie/Icons/object_overlay.png")
+            self.overlayTexture:SetTexture("Interface/AddOns/DevsQuestTracker/Icons/object_overlay.png")
         end
         self.overlayTexture:Show()
     else
@@ -332,7 +332,7 @@ function _QuestieFrame.UpdateTexture(self, texture)
 
     --[[if self.data.FinisherType then
         if self.data.FinisherType == "Object" then
-            self.overlayTexture:SetTexture("Interface/AddOns/Questie/Icons/object_overlay.png")
+            self.overlayTexture:SetTexture("Interface/AddOns/DevsQuestTracker/Icons/object_overlay.png")
         end
         self.overlayTexture:Show()
     else

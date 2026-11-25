@@ -694,6 +694,61 @@ local function _GetContinent(uiMapId)
     end
 end
 
+function TrackerUtils.UsesQuestZoneGrouping()
+    local sort = Questie.db.profile.trackerSortObjectives
+    return sort == "byZone" or sort == "byZonePlayerProximity" or sort == "byZonePlayerProximityReversed"
+end
+
+local trackedPlayerZone
+local openZoneNames
+local zoneOverrides = {}
+local zoneProfile
+
+---Refreshes temporary zone folds when the player enters a new zone.
+function TrackerUtils.RefreshAutoQuestZone()
+    local profile = Questie.db.profile
+    if not (profile.trackerAutoOpenCurrentZone and TrackerUtils.UsesQuestZoneGrouping()) then
+        local wasActive = trackedPlayerZone ~= nil
+        trackedPlayerZone, openZoneNames, zoneProfile = nil, nil, nil
+        return wasActive
+    end
+
+    local realZoneName = GetRealZoneText()
+    local mapId = C_Map.GetBestMapForUnit("player")
+    local mapInfo = mapId and C_Map.GetMapInfo(mapId)
+    local mapZoneName = mapInfo and mapInfo.mapType > Enum.UIMapType.Continent and mapInfo.name
+    local zone = realZoneName and realZoneName ~= "" and realZoneName or mapZoneName or nil
+    if zone ~= trackedPlayerZone or profile ~= zoneProfile then
+        zoneOverrides = {}
+        trackedPlayerZone, zoneProfile = zone, profile
+        openZoneNames = zone and {[zone] = true} or nil
+        if openZoneNames and mapZoneName and mapZoneName ~= "" then
+            openZoneNames[mapZoneName] = true
+        end
+        return true
+    end
+    return false
+end
+
+function TrackerUtils.IsQuestZoneCollapsed(zoneName)
+    if openZoneNames then
+        local override = zoneOverrides[zoneName]
+        if override ~= nil then
+            return override
+        end
+        return not openZoneNames[zoneName]
+    end
+    return Questie.db.char.collapsedZones[zoneName] == true
+end
+
+function TrackerUtils.SetQuestZoneCollapsed(zoneName, collapsed)
+    if openZoneNames then
+        zoneOverrides[zoneName] = collapsed
+    else
+        Questie.db.char.collapsedZones[zoneName] = collapsed or nil
+    end
+end
+
 ---@param zoneOrSort ZoneOrSort
 ---@param questId QuestId
 ---@return string zoneName Returns the zone name for a quest based on the quests zoneOrSort value and the current tracker sorting method. If the quest has no explicit zone or category, it will return "Unknown Zone".
@@ -701,7 +756,7 @@ end
 local function _GetZoneName(zoneOrSort, questId, nativeHeader)
     local zoneName
     local sortObj = Questie.db.profile.trackerSortObjectives
-    if sortObj == "byZone" or sortObj == "byZonePlayerProximity" or sortObj == "byZonePlayerProximityReversed" then
+    if TrackerUtils.UsesQuestZoneGrouping() then
         if nativeHeader then
             return nativeHeader
         elseif not zoneOrSort then
@@ -745,7 +800,9 @@ end
 
 ---@return table sortedQuestIds Table with sorted Quest ID's by Sort Type
 ---@return table questDetails Display records, completion fractions and grouping labels.
+---@return QuestId[] pinnedQuestIds Pinned quests in the selected sort order.
 function TrackerUtils:GetSortedQuestIds()
+    TrackerUtils.RefreshAutoQuestZone()
     ---@type QuestId[]
     local sortedQuestIds = {}
     ---@type table<QuestId, QuestSortDetails>
@@ -1086,7 +1143,18 @@ function TrackerUtils:GetSortedQuestIds()
         questZoneProximityTimer = nil
     end
 
-    return sortedQuestIds, questDetails
+    local pinnedQuestIds = {}
+    local pins = Questie.db.char.PinnedQuests
+    if next(pins) then
+        local groupedQuestIds = {}
+        for _, questId in ipairs(sortedQuestIds) do
+            local ids = pins[questId] and pinnedQuestIds or groupedQuestIds
+            ids[#ids + 1] = questId
+        end
+        sortedQuestIds = groupedQuestIds
+    end
+
+    return sortedQuestIds, questDetails, pinnedQuestIds
 end
 
 -- Spoken disables AI_VoiceOver and takes over the VoiceOver global when both are installed
@@ -1187,110 +1255,45 @@ function TrackerUtils.GetQuestItemIds(quest, complete)
     return usableQuestItems, nativeItemId
 end
 
----@param quest TrackerQuest @The quest to add the quest item buttons for
----@param complete number @0 if the quest is not complete, 1 if the quest is complete, -1 if the quest is failed
----@param line table @The line to add the quest item buttons to
----@param questItemButtonSize number @The size of the quest item buttons
----@param trackerQuestFrame table @The tracker quest frame
----@param isMinimizable boolean @true if the quest is minimizable
----@param rePositionLine function @Callback function to reposition the line
----@return boolean @true if the quest item buttons were added successfully, false if the tracker should stop populating
-function TrackerUtils.AddQuestItemButtons(quest, complete, line, questItemButtonSize, trackerQuestFrame, isMinimizable, rePositionLine)
-    local usableQuestItems, nativeItemId = TrackerUtils.GetQuestItemIds(quest, complete)
-    if #usableQuestItems > 0 then
-        -- Get button from buttonPool
-        local button = TrackerLinePool.GetNextItemButton()
-        if not button then
-            return false -- stop populating the tracker
-        end
-
-        local questId = quest.Id
-
-        local primaryButtonAdded = button:SetItem(usableQuestItems[1], questId, questItemButtonSize, usableQuestItems[1] == nativeItemId)
-
-        -- Setup button and set attributes
-        if primaryButtonAdded then
-            local height = 0
-            local frame = line
-            while frame and frame ~= trackerQuestFrame do
-                local _, parent, _, _, yOff = frame:GetPoint()
-                height = height - (frame:GetHeight() - yOff)
-                frame = parent
-            end
-
-            -- If the Quest is minimized show the Expand Quest button
-            if Questie.db.char.collapsedQuests[questId] then
-                if Questie.db.profile.collapseCompletedQuests and isMinimizable then
-                    line.expandQuest:Hide()
-                else
-                    line.expandQuest:Show()
-                end
-            else
-                line.expandQuest:Hide()
-            end
-
-            -- Attach button to Quest Title linePool
-            button:ClearAllPoints()
-            button:SetPoint("TOPLEFT", line, "TOPLEFT", TrackerLayout.GetMargins().itemButtonLeft, 1)
-            button:SetParent(line)
-            button:Show()
-
-            -- If the Quest Zone or Quest is minimized then set UIParent and hide buttons since the buttons are normally attached to the Quest frame.
-            -- If buttons are left attached to the Quest frame and if the Tracker frame is hidden in combat, then it would also try and hide the
-            -- buttons which you can't do in combat. This helps avoid violating the Blizzard SecureActionButtonTemplate restrictions relating to combat.
-            if Questie.db.char.collapsedZones[line.expandZone.zoneId] or Questie.db.char.collapsedQuests[questId] then
-                button:SetParent(UIParent)
-                button:Hide()
-            end
-
-            if #usableQuestItems > 1 then
-                local secondaryButton = TrackerLinePool.GetNextItemButton()
-                if not secondaryButton then
-                    return false -- stop populating the tracker
-                end
-
-                -- We add the altButton to be able to position things correctly in QuestieTracker.lua
-                line.altButton = secondaryButton
-
-                -- TODO: Handle more than 2 buttons if required
-                local secondaryButtonAdded = secondaryButton:SetItem(usableQuestItems[2], questId, questItemButtonSize, usableQuestItems[2] == nativeItemId)
-
-                if secondaryButtonAdded then
-                    height = 0
-                    frame = line
-
-                    while frame and frame ~= trackerQuestFrame do
-                        local _, parent, _, _, yOff = frame:GetPoint()
-                        height = height - (frame:GetHeight() - yOff)
-                        frame = parent
-                    end
-
-                    rePositionLine()
-
-                    -- Attach button to Quest Title linePool
-                    secondaryButton:ClearAllPoints()
-                    secondaryButton:SetPoint("TOPLEFT", line, "TOPLEFT", TrackerLayout.GetMargins().quest, 1)
-                    secondaryButton:SetParent(line)
-                    secondaryButton:Show()
-
-                    if Questie.db.char.collapsedZones[line.expandZone.zoneId] or Questie.db.char.collapsedQuests[questId] then
-                        secondaryButton:SetParent(UIParent)
-                        secondaryButton:Hide()
-                    end
-                end
-            end
-        else
-            -- Show button when primary button was not added (e.g. the requiredSourceItems are not in the bag yet)
-            line.expandQuest:Show()
-        end
-    elseif (Questie.db.profile.collapseCompletedQuests and isMinimizable) then
-        -- Hide button if quest complete or failed
-        line.expandQuest:Hide()
-    else
-        line.expandQuest:Show()
+---Adds usable item buttons to the right of the quest title.
+---@param quest TrackerQuest
+---@param complete number
+---@param line TrackerLineFrame
+---@param isMinimizable boolean
+---@param showSecondary boolean Whether a second item is needed for this row
+---@return boolean shouldContinue, number rightInset
+function TrackerUtils.AddQuestItemButtons(quest, complete, line, isMinimizable, showSecondary)
+    line.expandQuest:SetShown(not (Questie.db.profile.collapseCompletedQuests and isMinimizable))
+    if Questie.db.char.collapsedQuests[quest.Id] then
+        return true, 0
     end
 
-    return true
+    local usableQuestItems, nativeItemId = TrackerUtils.GetQuestItemIds(quest, complete)
+    local itemSize = TrackerLayout.GetMargins().itemButtonSize
+    local gap = TrackerLayout.ITEM_BUTTON_GAP
+    local numButtons = 0
+    local shouldContinue = true
+    for index = 1, math.min(#usableQuestItems, showSecondary and 2 or 1) do
+        local button = TrackerLinePool.GetNextItemButton()
+        if not button then
+            shouldContinue = false
+            break
+        end
+
+        local itemId = usableQuestItems[index]
+        if not button:SetItem(itemId, quest.Id, itemSize, itemId == nativeItemId) then
+            break
+        end
+
+        button:ClearAllPoints()
+        button:SetPoint("TOPRIGHT", line, "TOPRIGHT", -numButtons * (itemSize + gap), 1)
+        button:SetParent(line)
+        button:Show()
+        numButtons = numButtons + 1
+    end
+
+    local rightInset = math.max(0, numButtons * (itemSize + gap) - TrackerLayout.ITEM_BUTTON_RIGHT_EXTENSION)
+    return shouldContinue, rightInset
 end
 
 ---@return boolean @true if the Tracker tracks a quest, false if not

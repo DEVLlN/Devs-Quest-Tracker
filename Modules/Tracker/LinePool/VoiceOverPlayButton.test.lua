@@ -32,7 +32,7 @@ describe("VoiceOverPlayButton", function()
 
         assert.is_true(button:IsVisible())
         assert.are_same(1, button:GetAlpha())
-        assert.are_same("Interface\\Addons\\Questie\\Icons\\QuestLogPlayButton", button:GetNormalTexture():GetTexture())
+        assert.are_same("Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogPlayButton", button:GetNormalTexture():GetTexture())
     end)
 
     it("should show the stop icon while the quest sound plays", function()
@@ -41,7 +41,7 @@ describe("VoiceOverPlayButton", function()
 
         button:SetPlayButton(123)
 
-        assert.are_same("Interface\\Addons\\Questie\\Icons\\QuestLogStopButton", button:GetNormalTexture():GetTexture())
+        assert.are_same("Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogStopButton", button:GetNormalTexture():GetTexture())
     end)
 
     it("should hide without a quest", function()

@@ -382,12 +382,12 @@ of each one names its client version, which should match the `## Interface` of t
 
 | TOC file                                     | Branch or tag         |
 |----------------------------------------------|-----------------------|
-| `Questie_Vanilla.toc`                        | `classic_era`         |
-| `Questie_TBC.toc`                            | `classic_anniversary` |
-| `Questie_Wrath.toc`                          | `classic_titan`       |
-| `Questie_Cata.toc`                           | `4.4.2` (tag)         |
-| `Questie_Mists.toc`                          | `classic`             |
-| `Questie_Forever.toc`                         | `forever`             |
+| `DevsQuestTracker_Vanilla.toc`                        | `classic_era`         |
+| `DevsQuestTracker_TBC.toc`                            | `classic_anniversary` |
+| `DevsQuestTracker_Wrath.toc`                          | `classic_titan`       |
+| `DevsQuestTracker_Cata.toc`                           | `4.4.2` (tag)         |
+| `DevsQuestTracker_Mists.toc`                          | `classic`             |
+| `DevsQuestTracker_Forever.toc`                         | `forever`             |
 
 ```bash
 gh api "repos/Gethe/wow-ui-source/contents/Interface/AddOns/Blizzard_Menu/DropdownButton.lua?ref=classic_era" --jq .content | base64 -d

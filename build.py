@@ -61,7 +61,7 @@ from typing import Iterable
 import changelog
 
 
-addonDir = "Questie"
+addonDir = "DevsQuestTracker"
 includedExpansions = []
 # Expansion settings shared by selection, packaging, and addon-manager metadata.
 # Defaults apply only when no flavor is selected.
@@ -107,12 +107,12 @@ tocs = {}
 dbTocs = {}
 allTocs = {}
 for number, expansion in EXPANSIONS.items():
-    tocs[number] = f"Questie_{expansion['toc_suffix']}.toc"
+    tocs[number] = f"{addonDir}_{expansion['toc_suffix']}.toc"
     dbTocs[number] = f"QuestieDB_{expansion['toc_suffix']}.toc"
     allTocs[number] = [tocs[number]]
 
 directoriesToInclude = ["Database", "Icons", "Libs", "Localization", "Modules", "Public"]
-filesToInclude = ["Bindings.xml", "embeds.xml", "Questie.lua", "Questie.toc", "README.md", "README_ES.md", "README_CN.md", "LICENSE.md", "gpl-3.0.md"]
+filesToInclude = ["Bindings.xml", "embeds.xml", "Questie.lua", "DevsQuestTracker.toc", "README.md", "LICENSE.md", "gpl-3.0.md"]
 # originals hold texture sources and the scripts that render them; only their output ships.
 ignorePatterns = ["*.test.lua", "originals"]
 
@@ -199,12 +199,12 @@ def main():
             vs += "-%s" % recent_commit
         for expansion_id in includedExpansions:
             for toc in allTocs[expansion_id]:
-                with fileinput.FileInput(release_addon_folder_path + "/" + toc, inplace=True) as file:
+                with fileinput.FileInput(release_addon_folder_path + "/" + toc, inplace=True, encoding="utf-8") as file:
                     for line in file:
                         if line[:10] == "## Version":
                             print("## Version: " + vs)
                         elif line[:8] == '## Title':
-                            print('## Title: Questie|cFF00FF00 ' + vs + '|r')
+                            print("## Title: DeV's Quest Tracker|cFF00FF00 " + vs + '|r')
                         else:
                             print(line, end="")
 
@@ -214,7 +214,7 @@ def main():
     # Questie's identity is independent of build mode and the selected database.
     script_dir = os.path.dirname(os.path.realpath(__file__))
     questie = {
-        "repository": "https://github.com/Questie/Questie",
+        "repository": "https://github.com/DEVLlN/Devs-Quest-Tracker",
         "version": questieVersion,
         "producerCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=script_dir, text=True).strip(),
         "changelog": changelog.get_changelog_entries(),
@@ -223,9 +223,9 @@ def main():
     # Add Questie commit to toc files
     for expansion_id in includedExpansions:
         for toc in allTocs[expansion_id]:
-            with fileinput.FileInput(release_addon_folder_path + "/" + toc, inplace=True) as file:
+            with fileinput.FileInput(release_addon_folder_path + "/" + toc, inplace=True, encoding="utf-8") as file:
                 for line in file:
-                    if line == "## X-Wago-ID: qv634BKb\n":
+                    if line.startswith("## Version:"):
                         print(line + "## X-BUILD-COMMIT: %s" % questie["producerCommit"])
                     else:
                         print(line, end="")
@@ -463,7 +463,7 @@ def get_branch():
 
 def get_interface_versions(expansion):
     """Read every interface version from the source TOC for this flavor suffix."""
-    with open("Questie_%s.toc" % expansion, "r") as toc:
+    with open(f"{addonDir}_{expansion}.toc", encoding="utf-8") as toc:
         match = re.match("## Interface: (.*?)\n", toc.read(), re.DOTALL)
         return [v.strip() for v in match.group(1).split(",")]
 

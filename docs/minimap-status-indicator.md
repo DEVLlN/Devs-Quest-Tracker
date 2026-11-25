@@ -44,7 +44,7 @@ local QuestieStatus = QuestieLoader:ImportModule("QuestieStatus")
 QuestieStatus.Set("questiedb.source-mode", {
     severity = QuestieStatus.Severity.Info,
     message = "QuestieDB is running in Source mode.",
-    icon = {texture = "Interface\\AddOns\\Questie\\Icons\\green_plus.png"},
+    icon = {texture = "Interface\\AddOns\\DevsQuestTracker\\Icons\\green_plus.png"},
 })
 ```
 

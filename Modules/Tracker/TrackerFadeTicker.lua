@@ -39,7 +39,7 @@ function TrackerFadeTicker.Start()
                     end
 
                     -- Un-fade the Questie Icon
-                    if (Questie.db.char.isTrackerExpanded and not Questie.db.profile.trackerHeaderEnabled) then
+                    if (Questie.db.char.isTrackerExpanded and not Questie.db.profile.trackerHeaderEnabled and not trackerHeaderFrame:IsShown()) then
                         trackerHeaderFrame.questieIcon:SetAlpha(fadeTickerValue * 3.3)
                     end
 
@@ -87,7 +87,7 @@ function TrackerFadeTicker.Start()
                     end
 
                     -- Fade the Questie Icon
-                    if (Questie.db.char.isTrackerExpanded and not Questie.db.profile.trackerHeaderEnabled) then
+                    if (Questie.db.char.isTrackerExpanded and not Questie.db.profile.trackerHeaderEnabled and not trackerHeaderFrame:IsShown()) then
                         trackerHeaderFrame.questieIcon:SetAlpha(fadeTickerValue * 3.3)
                     end
 

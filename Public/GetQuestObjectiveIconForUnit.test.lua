@@ -11,7 +11,7 @@ describe("GetQuestObjectiveIconForUnit", function()
         QuestieNameplate = QuestieLoader:ImportModule("QuestieNameplate")
         ---@diagnostic disable-next-line: assign-type-mismatch
         QuestieNameplate.GetIcon = spy.new(function()
-            return "Interface\\Addons\\Questie\\Icons\\slay.blp"
+            return "Interface\\Addons\\DevsQuestTracker\\Icons\\slay.blp"
         end)
 
         dofile("Public/GetQuestObjectiveIconForUnit.lua")
@@ -43,7 +43,7 @@ describe("GetQuestObjectiveIconForUnit", function()
     it("should return icon path when Questie API is ready", function()
         local result = _G.Questie.API.GetQuestObjectiveIconForUnit("some-guid")
 
-        assert.is_equal("Interface\\Addons\\Questie\\Icons\\slay.blp", result)
+        assert.is_equal("Interface\\Addons\\DevsQuestTracker\\Icons\\slay.blp", result)
         assert.spy(QuestieNameplate.GetIcon).was.called_with("some-guid")
     end)
 end)

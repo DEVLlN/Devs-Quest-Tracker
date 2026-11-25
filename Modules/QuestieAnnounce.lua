@@ -46,12 +46,12 @@ local patternRU = ""
 
 function QuestieAnnounce.LogoFilter(self, event, msg, author, ...)
     if msg:find(pattern) then
-        return false, gsub(msg, pattern, "|TInterface\\Addons\\Questie\\Icons\\questie.png:0|t"), author, ...
+        return false, gsub(msg, pattern, "|TInterface\\Icons\\INV_Misc_Map_01:0|t"), author, ...
     end
     -- Adding this check for messages sent by ruRU clients where {rt1} doesnt work (thanks Blizz)
     -- We want those to also be replaced with our Questie icon
     if msg:find(patternRU) then
-        return false, gsub(msg, patternRU, "|TInterface\\Addons\\Questie\\Icons\\questie.png:0|t"), author, ...
+        return false, gsub(msg, patternRU, "|TInterface\\Icons\\INV_Misc_Map_01:0|t"), author, ...
     end
 end
 

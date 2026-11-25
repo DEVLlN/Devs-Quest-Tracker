@@ -42,7 +42,7 @@ describe("TaintWatch", function()
         end
         _G.C_AddOns = {
             GetNumAddOns = function() return 2 end,
-            GetAddOnInfo = function(index) return index == 1 and "Questie" or "OtherAddon" end,
+            GetAddOnInfo = function(index) return index == 1 and "DevsQuestTracker" or "OtherAddon" end,
             IsAddOnLoaded = function() return true end,
         }
         _G.WorldMapFrame = {ScrollContainer = {}, pinPools = {}, dataProviders = {}}
@@ -137,11 +137,11 @@ describe("TaintWatch", function()
         it("should not note, poll or report after debug is disabled", function()
             TaintWatch.Initialize()
             Questie.db.profile.debugEnabled = false
-            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "Questie"}
+            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "DevsQuestTracker"}
 
             TaintWatch.Note("OpenWorldMap", 1429)
             tickerCallback()
-            eventScript(nil, "ADDON_ACTION_BLOCKED", "Questie", "Frame:SetPassThroughButtons()")
+            eventScript(nil, "ADDON_ACTION_BLOCKED", "DevsQuestTracker", "Frame:SetPassThroughButtons()")
 
             assert.are.same(0, #_TaintWatch.notes)
             assert.are.same(0, #_TaintWatch.captures)
@@ -169,7 +169,7 @@ describe("TaintWatch", function()
         it("should report the first tainted Blizzard value with the preceding Questie actions", function()
             TaintWatch.Initialize()
             TaintWatch.Note("HBD AcquirePin")
-            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "Questie"}
+            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "DevsQuestTracker"}
 
             tickerCallback()
 
@@ -182,7 +182,7 @@ describe("TaintWatch", function()
 
         it("should report each tainted value only once", function()
             TaintWatch.Initialize()
-            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "Questie"}
+            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "DevsQuestTracker"}
 
             tickerCallback()
             tickerCallback()
@@ -192,9 +192,9 @@ describe("TaintWatch", function()
         end)
 
         it("should not mention BugGrabber in the report, as BugGrabber would only print it to the chat", function()
-            _G.C_AddOns.GetAddOnInfo = function(index) return index == 1 and "Questie" or "!BugGrabber" end
+            _G.C_AddOns.GetAddOnInfo = function(index) return index == 1 and "DevsQuestTracker" or "!BugGrabber" end
             TaintWatch.Initialize()
-            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "Questie"}
+            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "DevsQuestTracker"}
 
             tickerCallback()
 
@@ -219,7 +219,7 @@ describe("TaintWatch", function()
                 taintedValues[WorldMapFrame][key] = "OtherAddon"
             end
             tickerCallback()
-            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "Questie"}
+            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "DevsQuestTracker"}
 
             tickerCallback()
 
@@ -234,7 +234,7 @@ describe("TaintWatch", function()
             TaintWatch.Initialize()
             taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "OtherAddon"}
             tickerCallback()
-            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "Questie"}
+            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "DevsQuestTracker"}
 
             tickerCallback()
 
@@ -249,8 +249,8 @@ describe("TaintWatch", function()
         end)
 
         it("should report a blocked action of Questie once", function()
-            eventScript(nil, "ADDON_ACTION_BLOCKED", "Questie", "Frame:SetPassThroughButtons()")
-            eventScript(nil, "ADDON_ACTION_BLOCKED", "Questie", "Frame:SetPassThroughButtons()")
+            eventScript(nil, "ADDON_ACTION_BLOCKED", "DevsQuestTracker", "Frame:SetPassThroughButtons()")
+            eventScript(nil, "ADDON_ACTION_BLOCKED", "DevsQuestTracker", "Frame:SetPassThroughButtons()")
 
             assert.spy(errorHandler).was.called(1)
             local report = errorHandler.calls[1].vals[1]
@@ -297,7 +297,7 @@ describe("TaintWatch", function()
         it("should report a managed frame container that Questie tainted", function()
             _G.RightManagedFrameContainer = {showingFrames = {}}
             TaintWatch.Initialize()
-            taintedValues[_G.RightManagedFrameContainer] = {showingFrames = "Questie"}
+            taintedValues[_G.RightManagedFrameContainer] = {showingFrames = "DevsQuestTracker"}
 
             tickerCallback()
 
@@ -327,7 +327,7 @@ describe("TaintWatch", function()
             _G.debugstack = spy.new(function() return "stack line" end)
             WorldMapFrame.ScrollContainer.MarkCanvasDirty = function() end
             TaintWatch.Initialize()
-            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "Questie"}
+            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "DevsQuestTracker"}
 
             hooks.MarkCanvasDirty.hook(WorldMapFrame.ScrollContainer)
             hooks.MarkCanvasDirty.hook(WorldMapFrame.ScrollContainer)
@@ -355,7 +355,7 @@ describe("TaintWatch", function()
             _G.hooksecurefunc = function(tbl, method, hook) hooks[method] = {tbl = tbl, hook = hook} end
             WorldMapFrame.ScrollContainer.MarkCanvasDirty = function() end
             TaintWatch.Initialize()
-            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "Questie"}
+            taintedValues[WorldMapFrame.ScrollContainer] = {currentScale = "DevsQuestTracker"}
 
             hooks.MarkCanvasDirty.hook(WorldMapFrame.ScrollContainer)
 

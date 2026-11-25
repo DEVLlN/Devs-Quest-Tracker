@@ -87,7 +87,7 @@ describe("SourceModeStatus", function()
             {message = "Read mode: %s", args = {GOLD .. "source|r"}},
             {message = "Provider contracts: %s to %s; Questie requires %s", args = {GOLD .. "1|r", GOLD .. "3|r", GOLD .. "3|r"}},
         }, issues[2].details)
-        assert.are_same("Interface\\AddOns\\Questie\\Icons\\green_plus.png", QuestieStatus.GetBadgeIssue().icon.texture)
+        assert.are_same("Interface\\AddOns\\DevsQuestTracker\\Icons\\green_plus.png", QuestieStatus.GetBadgeIssue().icon.texture)
         assert.are_same(issues[1].icon, issues[2].icon)
     end)
 

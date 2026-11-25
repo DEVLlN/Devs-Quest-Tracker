@@ -7,8 +7,8 @@ local QuestieCombatQueue = QuestieLoader:ImportModule("QuestieCombatQueue")
 ---@class SpokenPlayButton
 local SpokenPlayButton = QuestieLoader:CreateModule("SpokenPlayButton")
 
-local PLAY_TEXTURE = "Interface\\Addons\\Questie\\Icons\\QuestLogPlayButton"
-local STOP_TEXTURE = "Interface\\Addons\\Questie\\Icons\\QuestLogStopButton"
+local PLAY_TEXTURE = "Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogPlayButton"
+local STOP_TEXTURE = "Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogStopButton"
 
 ---@type Button[]
 local playButtons = {}

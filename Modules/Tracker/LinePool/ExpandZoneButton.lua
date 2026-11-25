@@ -9,6 +9,8 @@ local TrackerFadeTicker = QuestieLoader:ImportModule("TrackerFadeTicker")
 local QuestieCombatQueue = QuestieLoader:ImportModule("QuestieCombatQueue")
 ---@type TrackerBaseFrame
 local TrackerBaseFrame = QuestieLoader:ImportModule("TrackerBaseFrame")
+---@type TrackerUtils
+local TrackerUtils = QuestieLoader:ImportModule("TrackerUtils")
 
 ---@param index number
 ---@param parent TrackerLineFrame
@@ -36,7 +38,7 @@ function ExpandZoneButton.New(index, parent, OnEnter, OnLeave)
         if button == "LeftButton" then
             if IsShiftKeyDown() then
                 -- This sets up the minAllQuestsInZone table upon first click
-                if not Questie.db.char.collapsedZones[self.zoneId] then
+                if self.mode == 1 then
                     if not Questie.db.char.minAllQuestsInZone[self.zoneId] then
                         Questie.db.char.minAllQuestsInZone[self.zoneId] = {}
                         -- This flag prevents repopulating QuestID's where we don't want them.
@@ -59,7 +61,7 @@ function ExpandZoneButton.New(index, parent, OnEnter, OnLeave)
             end
 
             if IsShiftKeyDown() then
-                if not Questie.db.char.collapsedZones[self.zoneId] then
+                if self.mode == 1 then
                     C_Timer.After(0.1, function()
                         if Questie.db.char.minAllQuestsInZone[self.zoneId].isTrue then
                             -- Places all QuestID's into the collapsedQuests table and keeps the Min/Max buttons in sync.
@@ -97,10 +99,11 @@ function ExpandZoneButton.New(index, parent, OnEnter, OnLeave)
                     Questie.Debug(Questie.DEBUG_DEVELOP, "[TrackerLine:expandZone] - Maximize")
                 end
 
-                if Questie.db.char.collapsedZones[self.zoneId] == true then
-                    Questie.db.char.collapsedZones[self.zoneId] = nil
+                local collapsed = self.mode == 0
+                if self.isQuestZone then
+                    TrackerUtils.SetQuestZoneCollapsed(self.zoneId, collapsed)
                 else
-                    Questie.db.char.collapsedZones[self.zoneId] = true
+                    Questie.db.char.collapsedZones[self.zoneId] = collapsed or nil
                 end
 
                 QuestieCombatQueue:Queue(function()

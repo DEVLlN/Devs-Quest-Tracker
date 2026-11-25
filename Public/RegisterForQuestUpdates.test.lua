@@ -15,7 +15,7 @@ describe("RegisterForQuestUpdates", function()
         QuestieNameplate = QuestieLoader:ImportModule("QuestieNameplate")
         ---@diagnostic disable-next-line: assign-type-mismatch
         QuestieNameplate.GetIcon = spy.new(function()
-            return "Interface\\Addons\\Questie\\Icons\\slay.blp"
+            return "Interface\\Addons\\DevsQuestTracker\\Icons\\slay.blp"
         end)
 
         dofile("Public/RegisterForQuestUpdates.lua")

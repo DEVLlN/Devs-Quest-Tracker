@@ -14,7 +14,7 @@ local TrackerUtils = QuestieLoader:ImportModule("TrackerUtils")
 local function _UpdateTexture(playButton)
     local button = VoiceOver.QuestOverlayUI.questPlayButtons[playButton.mode]
     local isPlaying = button and button.soundData and VoiceOver.SoundQueue:Contains(button.soundData)
-    playButton:SetNormalTexture(isPlaying and "Interface\\Addons\\Questie\\Icons\\QuestLogStopButton" or "Interface\\Addons\\Questie\\Icons\\QuestLogPlayButton")
+    playButton:SetNormalTexture(isPlaying and "Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogStopButton" or "Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogPlayButton")
 end
 
 ---@param index number
@@ -23,7 +23,7 @@ end
 function VoiceOverPlayButton.New(index, parent)
     local playButton = CreateFrame("Button", "linePool.playButton" .. index, parent)
     playButton:SetFrameLevel(100)
-    playButton:SetNormalTexture("Interface\\Addons\\Questie\\Icons\\QuestLogPlayButton")
+    playButton:SetNormalTexture("Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogPlayButton")
     playButton:SetHighlightTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Highlight")
 
     function playButton:SetPlayButton(questId)

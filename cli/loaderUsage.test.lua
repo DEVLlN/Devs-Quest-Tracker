@@ -169,11 +169,11 @@ function Something.Update()
 
     describe("the shipped codebase", function()
         local ALL_TOCS = {
-            "Questie_Vanilla.toc",
-            "Questie_TBC.toc",
-            "Questie_Wrath.toc",
-            "Questie_Cata.toc",
-            "Questie_Mists.toc",
+            "DevsQuestTracker_Vanilla.toc",
+            "DevsQuestTracker_TBC.toc",
+            "DevsQuestTracker_Wrath.toc",
+            "DevsQuestTracker_Cata.toc",
+            "DevsQuestTracker_Mists.toc",
         }
 
         it("has no runtime call outside the reviewed files", function()
@@ -201,14 +201,14 @@ function Something.Update()
 
     describe("ReadTocLuaPaths", function()
         it("returns lua entries in load order with forward slashes", function()
-            local paths = LoaderUsage.ReadTocLuaPaths("Questie_Vanilla.toc")
+            local paths = LoaderUsage.ReadTocLuaPaths("DevsQuestTracker_Vanilla.toc")
 
             assert.are_same("Modules/Libs/QuestieLoader.lua", paths[1])
             assert.is_true(#paths > 100)
         end)
 
         it("skips commented entries", function()
-            for _, path in ipairs(LoaderUsage.ReadTocLuaPaths("Questie_Vanilla.toc")) do
+            for _, path in ipairs(LoaderUsage.ReadTocLuaPaths("DevsQuestTracker_Vanilla.toc")) do
                 assert.are_same(nil, string.match(path, "^#"))
             end
         end)

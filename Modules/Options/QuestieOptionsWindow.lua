@@ -22,7 +22,7 @@ function QuestieOptionsWindow.Create(onSearchChanged)
     window:SetClampedToScreen(true)
     window:SetFrameStrata("HIGH")
     window:Hide()
-    window:SetTitle("Questie")
+    window:SetTitle("DeV's Quest Tracker")
     window:EnableMouse(true)
 
     local searchLabel = window:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -91,7 +91,7 @@ function QuestieOptionsWindow.Create(onSearchChanged)
         end
     end)
 
-    window:SetPortraitTextureRaw("Interface\\AddOns\\Questie\\Icons\\questie_portrait.png", nil, nil, "TRILINEAR")
+    window:SetPortraitTextureRaw("Interface\\Icons\\INV_Misc_Map_01", nil, nil, "TRILINEAR")
     local portrait = window.PortraitContainer.portrait
     if Questie.IsForever then
         if portrait then portrait:SetTexCoord(0.16, 0.86, 0.17, 0.87) end

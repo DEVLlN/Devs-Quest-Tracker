@@ -5,16 +5,19 @@ local TrackerLayout = QuestieLoader:CreateModule("TrackerLayout")
 
 TrackerLayout.MARGIN_LEFT = 14
 TrackerLayout.MARGIN_RIGHT = 30
+TrackerLayout.ITEM_BUTTON_GAP = 4
+-- Quest items can use part of the right padding that the text normally leaves empty.
+TrackerLayout.ITEM_BUTTON_RIGHT_EXTENSION = 12
 
 ---@class TrackerMargins
 ---@field left number
 ---@field right number
 ---@field quest number Left margin of quest/achievement/recipe titles
 ---@field objective number Left margin of objective lines
----@field buttonSize number Size of the quest focus, play and expand quest (+/-) buttons
+---@field buttonSize number Base size used by the expand quest button
+---@field focusButtonSize number Size of the round quest focus button
 ---@field itemButtonSize number
----@field itemButtonLeft number Left edge of the quest item buttons
----@field expandQuestRight number Right edge of the expand quest (+/-) buttons, centered in the quest item button column
+---@field expandQuestRight number Right edge of the expand quest (+/-) buttons
 ---@field playButtonSize number The play button icon has a transparent border, so the button is bigger than the others
 ---@field playButtonRight number Right edge of the VoiceOver and Spoken play buttons
 ---@field focusButtonRight number Right edge of the quest focus buttons
@@ -26,7 +29,6 @@ local baseFrame
 local updateWidth, updateHeight
 local isFocusSlotShown = function() return false end
 local isPlaySlotShown = function() return false end
-local itemColumnShown = true
 -- Width of the widest line drawn since the last reset
 local lineWidth = 0
 -- Widest tracker width requested since the last reset, nil before the first request
@@ -45,45 +47,33 @@ function TrackerLayout.Initialize(trackerBaseFrame, updateWidthCallback, updateH
     isPlaySlotShown = isPlaySlotShownCallback
 end
 
----Without any visible quest item button, the column in front of the quest titles only fits the expand quest (+/-) buttons.
----@param shown boolean
-function TrackerLayout.SetItemColumnShown(shown)
-    itemColumnShown = shown
-end
-
----The button slots are laid out from the quest title to the left: [focus] [play] [quest item or +/-] title
+---The left slots hold focus, playback, and expand buttons. Quest items sit on the right.
 ---@return TrackerMargins
 function TrackerLayout.GetMargins()
     local fontSizeQuest = Questie.db.profile.trackerFontSizeQuest
     local buttonSize = fontSizeQuest + 3
-    local itemButtonSize = 12 + fontSizeQuest
-    local itemColumn = itemColumnShown and itemButtonSize or buttonSize
+    local focusButtonSize = buttonSize * Questie.db.profile.trackerQuestFocusButtonScale / 100
+    local itemButtonSize = fontSizeQuest + 12
     local playButtonSize = buttonSize + 2
     local playSlot = isPlaySlotShown() and (playButtonSize + SLOT_GAP) or 0
-    local focusSlot = isFocusSlotShown() and (buttonSize + SLOT_GAP) or 0
+    local focusSlot = isFocusSlotShown() and (focusButtonSize + SLOT_GAP) or 0
 
-    local quest = focusSlot + playSlot + itemColumn + SLOT_GAP
-    local itemColumnRight = quest - SLOT_GAP
-    local itemButtonLeft = itemColumnRight - itemColumn
-    local playButtonRight = itemButtonLeft - SLOT_GAP
+    local playButtonRight = focusSlot + playSlot - SLOT_GAP
+    local expandQuestRight = focusSlot + playSlot + buttonSize
+    local quest = expandQuestRight + SLOT_GAP
     return {
         left = TrackerLayout.MARGIN_LEFT,
         right = TrackerLayout.MARGIN_RIGHT,
         quest = quest,
         objective = quest + fontSizeQuest,
         buttonSize = buttonSize,
+        focusButtonSize = focusButtonSize,
         itemButtonSize = itemButtonSize,
-        itemButtonLeft = itemButtonLeft,
-        expandQuestRight = itemColumnRight - math.floor((itemColumn - buttonSize) / 2),
+        expandQuestRight = expandQuestRight,
         playButtonSize = playButtonSize,
         playButtonRight = playButtonRight,
         focusButtonRight = playButtonRight - playSlot,
     }
-end
-
----@return Frame
-function TrackerLayout.GetBaseFrame()
-    return baseFrame
 end
 
 ---@return number
@@ -132,7 +122,8 @@ end
 ---@param marginLeft number
 function TrackerLayout.UpdateLineWidth(line, marginLeft)
     local trackerMaxWidth = GetScreenWidth() * Questie.db.profile.trackerWidthRatio
-    local margin = marginLeft + TrackerLayout.MARGIN_RIGHT
+    local rightInset = line.questItemInset or 0
+    local margin = marginLeft + TrackerLayout.MARGIN_RIGHT + rightInset
     local contentMaxWidth = trackerMaxWidth - margin
 
     local unboundedWidth = line.label:GetUnboundedStringWidth()
@@ -144,12 +135,12 @@ function TrackerLayout.UpdateLineWidth(line, marginLeft)
         TrackerLayout.UpdateWidth(trackerMaxWidth)
     end
 
-    line.label:SetWidth(baseFrame:GetWidth() - margin)
+    line.label:SetWidth(math.max(1, baseFrame:GetWidth() - margin))
     line:SetWidth(line.label:GetWidth() + marginLeft)
 
     -- If the line width is less than the minimum Tracker width then don't wrap text
     if unboundedWidth + marginLeft < contentMaxWidth then
-        TrackerLayout.TrackLineWidth(unboundedWidth + marginLeft)
+        TrackerLayout.TrackLineWidth(unboundedWidth + marginLeft + rightInset)
     else
         -- We use the fontSize as reliable way to determine the line height. GetStringHeight can be inconsistent.
         -- We add an extra pixel per line to account for WoW's internal line spacing on top of the raw font size.
@@ -158,6 +149,6 @@ function TrackerLayout.UpdateLineWidth(line, marginLeft)
         line.label:SetHeight(lineHeight)
         line:SetHeight(line.label:GetHeight() + (Questie.db.profile.trackerQuestPadding + 2))
 
-        TrackerLayout.TrackLineWidth(line.label:GetWrappedWidth() + marginLeft)
+        TrackerLayout.TrackLineWidth(line.label:GetWrappedWidth() + marginLeft + rightInset)
     end
 end

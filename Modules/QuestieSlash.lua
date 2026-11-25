@@ -32,6 +32,7 @@ local MinimapIcon = QuestieLoader:ImportModule("MinimapIcon")
 local stringtrim, stringgmatch, stringmatch = string.trim, string.gmatch, string.match
 
 function QuestieSlash.RegisterSlashCommands()
+    Questie:RegisterChatCommand("devstracker", QuestieSlash.HandleCommands)
     Questie:RegisterChatCommand("questieclassic", QuestieSlash.HandleCommands)
     Questie:RegisterChatCommand("questie", QuestieSlash.HandleCommands)
     Questie:RegisterChatCommand("q", QuestieSlash.HandleCommands)

@@ -14,6 +14,8 @@ local TrackerBaseFrame = QuestieLoader:ImportModule("TrackerBaseFrame")
 local TrackerLinePool = QuestieLoader:ImportModule("TrackerLinePool")
 ---@type TrackerUtils
 local TrackerUtils = QuestieLoader:ImportModule("TrackerUtils")
+---@type QuestieCombatQueue
+local QuestieCombatQueue = QuestieLoader:ImportModule("QuestieCombatQueue")
 ---@type TrackerShortcuts
 local TrackerShortcuts = QuestieLoader:ImportModule("TrackerShortcuts")
 ---@type Expansions
@@ -151,7 +153,13 @@ function QuestieOptionsEngine.tabs.tracker:Initialize()
                             if value then
                                 Questie.db.char.TrackedQuests = {}
                             else
-                                Questie.db.char.AutoUntrackedQuests = {}
+                                local char = Questie.db.char
+                                char.AutoUntrackedQuests = {}
+                                for questId in pairs(char.PinnedQuests) do
+                                    if not char.TrackedQuests[questId] then
+                                        char.PinnedQuests[questId] = nil
+                                    end
+                                end
                             end
                             CommsVisibility:ScheduleSnapshot("AUTO_TRACK_QUESTS")
 
@@ -161,6 +169,18 @@ function QuestieOptionsEngine.tabs.tracker:Initialize()
                             end
 
                             QuestieTracker:Update()
+                        end,
+                    },
+                    autoPinTrackedQuests = {
+                        type = "checkbox",
+                        order = 1.1,
+                        title = "Auto-Pin Tracked Quests",
+                        tooltip = "Pins a quest when you manually track it. Untracking the quest removes its pin.",
+                        width = "half",
+                        enabled = function() return Questie.db.profile.trackerEnabled end,
+                        get = function() return Questie.db.profile.trackerAutoPinTrackedQuests end,
+                        set = function(_, value)
+                            Questie.db.profile.trackerAutoPinTrackedQuests = value
                         end,
                     },
                     showQuestLevels = {
@@ -362,6 +382,21 @@ function QuestieOptionsEngine.tabs.tracker:Initialize()
                                 set = function(key)
                                     Questie.db.profile.trackerSortObjectives = key
                                     QuestieTracker:Update()
+                                end,
+                            },
+                            autoOpenCurrentZone = {
+                                type = "checkbox",
+                                order = 8,
+                                title = "Auto-Open Current Zone",
+                                tooltip = "When you enter a zone, opens its quest section and collapses other zones. Requires a zone-based Objective Sorting mode. Pinned quests stay at the top.",
+                                width = "half",
+                                enabled = function()
+                                    return Questie.db.profile.trackerEnabled and TrackerUtils.UsesQuestZoneGrouping()
+                                end,
+                                get = function() return Questie.db.profile.trackerAutoOpenCurrentZone end,
+                                set = function(_, value)
+                                    Questie.db.profile.trackerAutoOpenCurrentZone = value
+                                    QuestieCombatQueue:Queue(function() QuestieTracker:Update() end)
                                 end,
                             },
                         },
@@ -571,6 +606,22 @@ function QuestieOptionsEngine.tabs.tracker:Initialize()
                             QuestieTracker:Update()
                         end
                     },
+                    questFocusButtonScale = {
+                        type = "slider",
+                        order = 7.4,
+                        width = "half",
+                        title = "Quest Focus Button Size",
+                        tooltip = "Changes the size of the round focus buttons beside quest titles.",
+                        min = 50,
+                        max = 200,
+                        step = 5,
+                        enabled = function() return Questie.db.profile.trackerEnabled end,
+                        get = function() return Questie.db.profile.trackerQuestFocusButtonScale end,
+                        set = function(_, value)
+                            Questie.db.profile.trackerQuestFocusButtonScale = value
+                            QuestieCombatQueue:Queue(function() QuestieTracker:Update() end)
+                        end,
+                    },
                     disableHoverFade = {
                         type = "checkbox",
                         order = 8,
@@ -717,7 +768,7 @@ function QuestieOptionsEngine.tabs.tracker:Initialize()
                         title = "Tracker Width Ratio",
                         tooltip = "The width of the Questie Tracker based on percentage of usable screen width. A setting of 100 percent would make the Tracker fill the players entire screen width.\n\nNOTE: This setting only applies while in Sizer Mode: Auto",
                         width = "half",
-                        min = 15,
+                        min = 5,
                         max = 100,
                         step = 1,
                         enabled = function() return Questie.db.profile.trackerEnabled end,
@@ -768,6 +819,55 @@ function QuestieOptionsEngine.tabs.tracker:Initialize()
                                 get = function() return Questie.db.profile.moveHeaderToBottom end,
                                 set = function(_, value)
                                     Questie.db.profile.moveHeaderToBottom = value
+                                    QuestieTracker:UpdateFormatting()
+                                end,
+                            },
+                            classicHeaderTheme = {
+                                type = "checkbox",
+                                order = 4,
+                                title = "Classic Header Theme",
+                                tooltip = "Uses the Blizzard objective tracker header artwork and shows a collapse button on the right.",
+                                width = "half",
+                                enabled = function()
+                                    return Questie.db.profile.trackerEnabled and (Questie.db.profile.trackerHeaderEnabled or Questie.db.profile.alwaysShowTracker)
+                                end,
+                                get = function() return Questie.db.profile.trackerClassicHeaderTheme end,
+                                set = function(_, value)
+                                    Questie.db.profile.trackerClassicHeaderTheme = value
+                                    QuestieTracker:UpdateFormatting()
+                                end,
+                            },
+                            hideClassicHeaderIcon = {
+                                type = "checkbox",
+                                order = 5,
+                                title = "Hide Classic Header Question Mark",
+                                tooltip = "Hides the question mark beside the title when using the Classic Header Theme.",
+                                width = "half",
+                                enabled = function()
+                                    local profile = Questie.db.profile
+                                    return profile.trackerEnabled and profile.trackerClassicHeaderTheme
+                                        and (profile.trackerHeaderEnabled or profile.alwaysShowTracker)
+                                end,
+                                get = function() return Questie.db.profile.trackerHideClassicHeaderIcon end,
+                                set = function(_, value)
+                                    Questie.db.profile.trackerHideClassicHeaderIcon = value
+                                    QuestieTracker:UpdateFormatting()
+                                end,
+                            },
+                            fadeHeaderOptionsButton = {
+                                type = "checkbox",
+                                order = 6,
+                                title = "Fade Questie Options Button",
+                                tooltip = "Fades the question mark until you move the mouse over the tracker header.",
+                                width = "half",
+                                enabled = function()
+                                    local profile = Questie.db.profile
+                                    return profile.trackerEnabled and (profile.trackerHeaderEnabled or profile.alwaysShowTracker)
+                                        and not (profile.trackerClassicHeaderTheme and profile.trackerHideClassicHeaderIcon)
+                                end,
+                                get = function() return Questie.db.profile.trackerFadeHeaderOptionsButton end,
+                                set = function(_, value)
+                                    Questie.db.profile.trackerFadeHeaderOptionsButton = value
                                     QuestieTracker:UpdateFormatting()
                                 end,
                             },

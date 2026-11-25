@@ -655,7 +655,7 @@ describe("MapIconTooltip objective wording", function()
                 "Quest 1",
                 "|cFFDDDDDDWindstone",
                 "|cFFededed|cFFEEEEEE9/15 Windstone Cluster",
-                "|TInterface\\Addons\\Questie\\Icons\\nextquest.blp:16:16:2:0|tNext in chain: ",
+                "|TInterface\\Addons\\DevsQuestTracker\\Icons\\nextquest.blp:16:16:2:0|tNext in chain: ",
                 {"Quest 5", ""},
             }, rendered)
         end)
@@ -706,7 +706,7 @@ describe("MapIconTooltip objective wording", function()
             assert.are_same({
                 "Giver",
                 {"Quest 1", "(Complete)"},
-                "|TInterface\\Addons\\Questie\\Icons\\nextquest.blp:16:16:2:0|tNext in chain: ",
+                "|TInterface\\Addons\\DevsQuestTracker\\Icons\\nextquest.blp:16:16:2:0|tNext in chain: ",
                 {"Quest 5", ""},
                 " ",
                 {"Quest 1", "(Active)"},

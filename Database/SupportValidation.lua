@@ -46,7 +46,7 @@ end
 local function _Result(failures, dataset, expansion)
     if #failures == 0 then return true end
     local metadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
-    local questieVersion = metadata and metadata("Questie", "Version") or "unknown"
+    local questieVersion = metadata and metadata("DevsQuestTracker", "Version") or "unknown"
     local tdbVersion = metadata and metadata("QuestieDB", "Version") or "unknown"
     local consumerFlavor = expansion == 1 and Questie and Questie.IsForever and "Forever" or flavors[expansion]
     return false, "Questie support-data validation failed. Initialization stopped.\n" ..

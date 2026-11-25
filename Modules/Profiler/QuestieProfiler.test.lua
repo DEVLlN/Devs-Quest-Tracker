@@ -1639,10 +1639,10 @@ describe("QuestieProfiler", function()
     end)
 
     it("keeps the addon prefix off a job name WoW truncated from the left", function()
-        -- WoW renders a long path as "...erface/AddOns/Questie/...", which a match needing the whole word
+        -- WoW renders a long path as "...erface/AddOns/DevsQuestTracker/...", which a match needing the whole word
         -- "Interface" would leave untouched, putting the ellipsis and full path in the job's name.
         _G.debugstack = function()
-            return "...erface/AddOns/Questie/Modules/Quest/QuestieQuest.lua:105"
+            return "...erface/AddOns/DevsQuestTracker/Modules/Quest/QuestieQuest.lua:105"
         end
         Profiler:Start(false)
 
@@ -1654,9 +1654,9 @@ describe("QuestieProfiler", function()
 
     it("recovers a job name whose truncation cut landed inside the addon marker itself", function()
         -- The cut position depends on total path length, so for a window of lengths the ellipsis bisects
-        -- "AddOns/Questie/" and a match needing the whole marker is a no-op.
+        -- "AddOns/DevsQuestTracker/" and a match needing the whole marker is a no-op.
         _G.debugstack = function()
-            return "...Ons/Questie/Modules/Quest/QuestieQuest.lua:105"
+            return "...Ons/DevsQuestTracker/Modules/Quest/QuestieQuest.lua:105"
         end
         Profiler:Start(false)
 
@@ -1668,7 +1668,7 @@ describe("QuestieProfiler", function()
 
     it("recovers a job name whose truncation cut landed inside the Questie segment", function()
         _G.debugstack = function()
-            return "...stie/Modules/Quest/QuestieQuest.lua:105"
+            return "...Tracker/Modules/Quest/QuestieQuest.lua:105"
         end
         Profiler:Start(false)
 
@@ -1723,8 +1723,8 @@ describe("QuestieProfiler", function()
     it("names an anonymous job by its definition site, not the call site that repeats the path", function()
         _G.debugstack = function()
             return "Modules/Libs/ThreadLib.lua:86: in function 'Thread'\n"
-                .. "[Interface/AddOns/Questie/Modules/QuestieInit.lua]:394: "
-                .. "in function <Interface/AddOns/Questie/Modules/QuestieInit.lua:392>"
+                .. "[Interface/AddOns/DevsQuestTracker/Modules/QuestieInit.lua]:394: "
+                .. "in function <Interface/AddOns/DevsQuestTracker/Modules/QuestieInit.lua:392>"
         end
         Profiler:Start(false)
 
@@ -1738,7 +1738,7 @@ describe("QuestieProfiler", function()
     it("drops the addon path prefix and WoW's brackets from a call site", function()
         _G.debugstack = function()
             return "Modules/Libs/ThreadLib.lua:86: in function 'Thread'\n"
-                .. "[Interface/AddOns/Questie/Modules/Quest/QuestieQuest.lua]:507"
+                .. "[Interface/AddOns/DevsQuestTracker/Modules/Quest/QuestieQuest.lua]:507"
         end
         Profiler:Start(false)
 
@@ -1752,8 +1752,8 @@ describe("QuestieProfiler", function()
         local callSiteLine = 100
         _G.debugstack = function()
             return "Modules/Libs/ThreadLib.lua:86: in function 'Thread'\n"
-                .. "[Interface/AddOns/Questie/Modules/QuestieInit.lua]:" .. callSiteLine
-                .. ": in function <Interface/AddOns/Questie/Modules/QuestieInit.lua:50>"
+                .. "[Interface/AddOns/DevsQuestTracker/Modules/QuestieInit.lua]:" .. callSiteLine
+                .. ": in function <Interface/AddOns/DevsQuestTracker/Modules/QuestieInit.lua:50>"
         end
         Profiler:Start(false)
 
@@ -1782,7 +1782,7 @@ describe("QuestieProfiler", function()
     it("spells a backslash path the way addon-load rows spell it", function()
         _G.debugstack = function()
             return "Modules/Libs/ThreadLib.lua:86: in function 'Thread'\n"
-                .. "[Interface\\AddOns\\Questie\\Modules\\QuestieInit.lua]:100"
+                .. "[Interface\\AddOns\\DevsQuestTracker\\Modules\\QuestieInit.lua]:100"
         end
         Profiler:Start(false)
 

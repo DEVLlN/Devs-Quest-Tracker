@@ -7,17 +7,21 @@ local LineBuilder = QuestieLoader:CreateModule("LineBuilder")
 local TrackerLayout = QuestieLoader:ImportModule("TrackerLayout")
 ---@type TrackerLinePool
 local TrackerLinePool = QuestieLoader:ImportModule("TrackerLinePool")
+---@type TrackerUtils
+local TrackerUtils = QuestieLoader:ImportModule("TrackerUtils")
 
 ---@class HeaderLineOptions
 ---@field key string The collapsedZones key, e.g. "Elwynn Forest", "Achievements" or "Recipes"
 ---@field text string The shown text, e.g. "Achievements: 3/10"
 ---@field collapsedText string? Defaults to text .. " +"
+---@field questZone boolean? Whether this is a quest group eligible for zone auto-expansion
 
 --- Zero out the minAllQuestsInZone table of a zone, when it holds no more quest ids.
 ---@param key string
-local function _CleanUpMinAllQuestsInZone(key)
+---@param collapsed boolean
+local function _CleanUpMinAllQuestsInZone(key, collapsed)
     local minAllQuests = Questie.db.char.minAllQuestsInZone[key]
-    if minAllQuests == nil or minAllQuests.isTrue or Questie.db.char.collapsedZones[key] then
+    if minAllQuests == nil or minAllQuests.isTrue or collapsed then
         return
     end
 
@@ -55,7 +59,13 @@ function LineBuilder.AddHeader(options)
     end
 
     local margins = TrackerLayout.GetMargins()
-    local collapsed = Questie.db.char.collapsedZones[options.key] and true or false
+    local collapsed
+    if options.questZone then
+        collapsed = TrackerUtils.IsQuestZoneCollapsed(options.key)
+    else
+        collapsed = Questie.db.char.collapsedZones[options.key] == true
+    end
+    line.expandZone.isQuestZone = options.questZone
 
     line:SetMode("zone")
     line:SetZone(options.key)
@@ -74,7 +84,7 @@ function LineBuilder.AddHeader(options)
         line.label:SetText("|cFFC0C0C0" .. options.text .. "|r")
     end
 
-    _CleanUpMinAllQuestsInZone(options.key)
+    _CleanUpMinAllQuestsInZone(options.key, collapsed)
 
     TrackerLayout.UpdateWidth(line.label:GetUnboundedStringWidth() + margins.left + margins.right)
     line.label:SetWidth(TrackerLayout.GetBaseFrameWidth() - margins.left - margins.right)
@@ -129,11 +139,13 @@ function LineBuilder.AddTitle(options)
         line.playButton:Hide()
     end
 
+    line.titleMarginLeft = margins.quest
     line.label:ClearAllPoints()
-    line.label:SetPoint("TOPLEFT", line, "TOPLEFT", margins.quest, 0)
+    line.label:SetPoint("TOPLEFT", line, "TOPLEFT", line.titleMarginLeft, 0)
 
+    line.questFocus:SetSize(margins.focusButtonSize, margins.focusButtonSize)
     line.questFocus:ClearAllPoints()
-    line.questFocus:SetPoint("TOPRIGHT", line, "TOPLEFT", margins.focusButtonRight, 1)
+    line.questFocus:SetPoint("TOPRIGHT", line, "TOPLEFT", margins.focusButtonRight, 1 + (margins.focusButtonSize - margins.buttonSize) / 2)
 
     -- Vertically centered on the other buttons, since it is bigger
     line.playButton:SetSize(margins.playButtonSize, margins.playButtonSize)
@@ -165,7 +177,7 @@ function LineBuilder.AddTitle(options)
     end
 
     TrackerLayout.UpdateWidth(line.label:GetUnboundedStringWidth() + margins.quest + margins.right)
-    line.label:SetWidth(TrackerLayout.GetBaseFrameWidth() - margins.quest - margins.right)
+    line.label:SetWidth(math.max(1, TrackerLayout.GetBaseFrameWidth() - margins.quest - margins.right))
     line:SetWidth(line.label:GetWidth() + margins.quest)
     TrackerLayout.TrackLineWidth(line.label:GetUnboundedStringWidth() + margins.quest)
 
@@ -177,29 +189,13 @@ function LineBuilder.AddTitle(options)
     return line, collapsed
 end
 
---- Moves a title to the right, e.g. to make room for a quest item button in front of it.
----@param line TrackerLineFrame
----@param indent number
-function LineBuilder.IndentTitle(line, indent)
-    local margins = TrackerLayout.GetMargins()
-    local marginLeft = margins.quest + indent
-
-    -- 2 pixels gap to the item button
-    line.label:ClearAllPoints()
-    line.label:SetPoint("TOPLEFT", line, "TOPLEFT", marginLeft + 2, 0)
-
-    TrackerLayout.UpdateWidth(line.label:GetUnboundedStringWidth() + marginLeft + margins.right)
-    line.label:SetWidth(TrackerLayout.GetBaseFrameWidth() - marginLeft - margins.right)
-    line:SetWidth(line.label:GetWidth() + marginLeft)
-    TrackerLayout.TrackLineWidth(line.label:GetUnboundedStringWidth() + marginLeft)
-end
-
 ---@class ObjectiveLineOptions
 ---@field text string
 ---@field clickMode LineClickMode
 ---@field target table The quest, achievement or recipe stored on the line
 ---@field objective table? The quest objective, for combat text updates
----@field marginLeft number? Defaults to TrackerLayout.GetMargins().objective, quest item buttons add to it
+---@field marginLeft number? Defaults to TrackerLayout.GetMargins().objective
+---@field rightInset number? Room for quest item buttons on the right
 
 ---@param options ObjectiveLineOptions
 ---@return TrackerLineFrame|nil
@@ -212,6 +208,7 @@ function LineBuilder.AddObjective(options)
     local marginLeft = options.marginLeft or TrackerLayout.GetMargins().objective
 
     line:SetMode("objective")
+    line.questItemInset = options.rightInset or 0
     _SetTarget(line, options.clickMode, options.target, options.objective)
     line.expandZone:Hide()
     line.expandQuest:Hide()
@@ -236,7 +233,8 @@ end
 ---@field text string
 ---@field target table The quest stored on the line
 ---@field activeTimer boolean The text is updated every second without a new layout
----@field marginLeft number? Defaults to TrackerLayout.GetMargins().objective, quest item buttons add to it
+---@field marginLeft number? Defaults to TrackerLayout.GetMargins().objective
+---@field rightInset number? Room for quest item buttons on the right
 
 ---@param options TimerLineOptions
 ---@return TrackerLineFrame|nil
@@ -250,6 +248,7 @@ function LineBuilder.AddTimer(options)
     local marginLeft = options.marginLeft or margins.objective
 
     line:SetMode("objective")
+    line.questItemInset = options.rightInset or 0
     _SetTarget(line, "quest", options.target)
     line.expandZone:Hide()
     line.expandQuest:Hide()
@@ -262,11 +261,12 @@ function LineBuilder.AddTimer(options)
     line.label.activeTimer = options.activeTimer
     line.label:SetText(options.text)
 
-    TrackerLayout.UpdateWidth(line.label:GetUnboundedStringWidth() + marginLeft + margins.right)
+    local rightMargin = margins.right + line.questItemInset
+    TrackerLayout.UpdateWidth(line.label:GetUnboundedStringWidth() + marginLeft + rightMargin)
     -- Timers start with "15 Minutes" and become "14 Minutes 59 Seconds" right after, without a new layout
-    line.label:SetWidth(TrackerLayout.GetBaseFrameWidth() - marginLeft - margins.right + 40)
+    line.label:SetWidth(math.max(1, TrackerLayout.GetBaseFrameWidth() - marginLeft - rightMargin + 40))
     line:SetWidth(line.label:GetWidth() + marginLeft)
-    TrackerLayout.TrackLineWidth(line.label:GetUnboundedStringWidth() + marginLeft)
+    TrackerLayout.TrackLineWidth(line.label:GetUnboundedStringWidth() + marginLeft + line.questItemInset)
 
     -- Adds 1 pixel between the timer and the first objective
     line:SetHeight(line.label:GetHeight() + 1)
@@ -278,8 +278,10 @@ end
 
 --- Adds the "Padding Between Quests" setting of the tracker options below the last line of an entry.
 ---@param line TrackerLineFrame|nil The last line of the entry, nil when the line pool was exhausted
-function LineBuilder.FinishEntry(line)
+---@param endsQuestEntry boolean? Whether this is the last line of a quest entry
+function LineBuilder.FinishEntry(line, endsQuestEntry)
     line = line or TrackerLinePool.GetLastLine()
+    line.endsQuestEntry = endsQuestEntry
 
     -- Adds 2 pixels and the "Padding Between Quests" setting
     line:SetHeight(line.label:GetHeight() + (Questie.db.profile.trackerQuestPadding + 2))

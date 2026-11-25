@@ -92,13 +92,13 @@ describe("SpokenPlayButton", function()
             origin = "Questie's tracker Play button",
             stopCallback = queuedLines[123].stopCallback,
         }, queuedLines[123])
-        assert.are_same("Interface\\Addons\\Questie\\Icons\\QuestLogStopButton", button:GetNormalTexture():GetTexture())
+        assert.are_same("Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogStopButton", button:GetNormalTexture():GetTexture())
 
         button.scripts.OnClick(button)
 
         assert.spy(remove).was.called(1)
         assert.is_nil(queuedLines[123])
-        assert.are_same("Interface\\Addons\\Questie\\Icons\\QuestLogPlayButton", button:GetNormalTexture():GetTexture())
+        assert.are_same("Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogPlayButton", button:GetNormalTexture():GetTexture())
     end)
 
     it("should show the play icon on the new button when a playing quest moves to another line", function()
@@ -113,7 +113,7 @@ describe("SpokenPlayButton", function()
         queuedLines[123] = nil
         callbacks.AUDIO_CHANGED()
 
-        assert.are_same("Interface\\Addons\\Questie\\Icons\\QuestLogPlayButton", otherButton:GetNormalTexture():GetTexture())
+        assert.are_same("Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogPlayButton", otherButton:GetNormalTexture():GetTexture())
     end)
 
     it("should show the stop icon when audio is queued outside of Questie", function()
@@ -124,7 +124,7 @@ describe("SpokenPlayButton", function()
         queuedLines[123] = {}
         callbacks.AUDIO_CHANGED()
 
-        assert.are_same("Interface\\Addons\\Questie\\Icons\\QuestLogStopButton", button:GetNormalTexture():GetTexture())
+        assert.are_same("Interface\\Addons\\DevsQuestTracker\\Icons\\QuestLogStopButton", button:GetNormalTexture():GetTexture())
     end)
 
     it("should hide the play button when Spoken's Quests part is off", function()

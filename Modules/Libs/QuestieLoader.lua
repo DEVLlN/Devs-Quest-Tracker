@@ -84,15 +84,15 @@ local function StampLoad(stackLevel, sourceOverride)
     -- not building anything, and a negative figure means the collector ran and freed memory during it.
     loadMemory[lastSource] = (loadMemory[lastSource] or 0) + (nowKilobytes - lastMemoryKilobytes)
 
-    -- WoW renders the path bracketed: "[Interface/AddOns/Questie/Modules/Foo.lua]:3: in main chunk".
+    -- WoW renders the path bracketed: "[Interface/AddOns/DevsQuestTracker/Modules/Foo.lua]:3: in main chunk".
     -- An inline XML Script chunk carries the XML's own path instead:
-    -- "[Interface/AddOns/Questie/.../lookupItems.xml:<Scripts>]:1: in main chunk".
+    -- "[Interface/AddOns/DevsQuestTracker/.../lookupItems.xml:<Scripts>]:1: in main chunk".
     local source = sourceOverride
     if not source then
         source = string.match(stack, "%[([^%]]+%.lua)%]:%d+")
             or string.match(stack, "%[([^%]]+%.xml):<Scripts>%]:%d+")
         if source then
-            source = string.gsub(source, "^.*[Qq]uestie/", "")
+            source = string.gsub(source, "^.*[Dd]evsQuestTracker/", "")
         end
     end
 

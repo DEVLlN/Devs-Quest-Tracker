@@ -207,7 +207,7 @@ if QuestieProfilerEnabled == true then
         local finishFrame = CreateFrame("Frame")
         finishFrame:RegisterEvent("ADDON_LOADED")
         finishFrame:SetScript("OnEvent", function(self, _, addonName)
-            if addonName ~= "Questie" then
+            if addonName ~= "DevsQuestTracker" then
                 return
             end
             self:UnregisterEvent("ADDON_LOADED")

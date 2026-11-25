@@ -22,7 +22,7 @@
                 </Texture>
             </Layer>
             <Layer level="ARTWORK">
-                <Texture parentKey="Icon" file="Interface\Addons\Questie\Icons\questie.png">
+                <Texture parentKey="Icon" file="Interface\Icons\INV_Misc_Map_01">
                     <Size x="22" y="22"/>
                     <Anchors>
                         <Anchor point="TOPLEFT" x="6" y="-5"/>

@@ -2,11 +2,12 @@ local print = require("cli.print")
 local LoaderUsage = require("cli.loaderUsage")
 
 local TOC_PATHS = {
-    "Questie_Vanilla.toc",
-    "Questie_TBC.toc",
-    "Questie_Wrath.toc",
-    "Questie_Cata.toc",
-    "Questie_Mists.toc",
+    "DevsQuestTracker_Vanilla.toc",
+    "DevsQuestTracker_TBC.toc",
+    "DevsQuestTracker_Wrath.toc",
+    "DevsQuestTracker_Cata.toc",
+    "DevsQuestTracker_Mists.toc",
+    "DevsQuestTracker_Forever.toc",
 }
 
 print("\n\27[36mChecking QuestieLoader module call sites...\27[0m")

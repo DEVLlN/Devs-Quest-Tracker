@@ -659,6 +659,12 @@ function QuestieTracker.HandleZoneChanged()
         return
     end
 
+    if TrackerUtils.RefreshAutoQuestZone() then
+        QuestieCombatQueue:Queue(function()
+            QuestieTracker:Update()
+        end)
+    end
+
     if IsInInstance() then
         if Questie.db.profile.minimizeTrackerInInstances then
             if Questie.db.char.isTrackerExpanded then
@@ -929,7 +935,7 @@ function QuestieTracker:Update(onlyIfChanged)
     -- This is needed so the Tracker can also decrease its width
     TrackerLayout.ResetLineWidth()
 
-    local sortedQuestIds, questDetails = TrackerUtils:GetSortedQuestIds()
+    local sortedQuestIds, questDetails, pinnedQuestIds = TrackerUtils:GetSortedQuestIds()
 
     if isChallengeMode then
         -- Challenge Mode is active, so we only show the Challenge Mode objectives
@@ -943,9 +949,11 @@ function QuestieTracker:Update(onlyIfChanged)
             ChallengeModeTimer.SetTimerLabel(nil)
         end
 
-        -- Populate Achievements first then Quests
+        -- Pinned quests go above every section of the regular tracker.
+        QuestSection.Draw(pinnedQuestIds, questDetails, true)
+
+        -- Populate the remaining sections in the configured order.
         local showAchievements = Expansions.Current >= Expansions.Wotlk
-        TrackerLayout.SetItemColumnShown(QuestSection.HasVisibleQuestItems(sortedQuestIds, questDetails))
         if Questie.db.profile.listAchievementsFirst and showAchievements then
             AchievementSection.Draw()
             QuestSection.Draw(sortedQuestIds, questDetails)
@@ -1023,20 +1031,13 @@ function QuestieTracker:UpdateFormatting()
         local trackerVarsCombined = TrackerLayout.GetLineWidth() + trackerMarginRight
         TrackerLinePool.UpdateWrappedLineWidths(TrackerLayout.GetLineWidth())
         local margins = TrackerLayout.GetMargins()
-        local questMarginLeft = margins.quest
         local objectiveMarginLeft = margins.objective
-        local questItemButtonSize = margins.itemButtonSize
 
         -- Called without a new draw too, e.g. by the width ratio slider. The widths requested while drawing must not
         -- hold back resizing to the new width, or wrapped lines are sized for the old one.
         TrackerLayout.ResetRequestedWidth()
         TrackerLinePool.UpdateObjectiveLines(function(line)
-            if line.questHasSecondaryQIB then
-                -- The objective line belongs to a quest with two quest items, so we need to add extra padding to account for the second QIB
-                TrackerLayout.UpdateLineWidth(line, objectiveMarginLeft + questItemButtonSize)
-            else
-                TrackerLayout.UpdateLineWidth(line, objectiveMarginLeft)
-            end
+            TrackerLayout.UpdateLineWidth(line, objectiveMarginLeft)
         end)
 
         QuestieTracker:UpdateWidth(trackerVarsCombined)
@@ -1044,22 +1045,63 @@ function QuestieTracker:UpdateFormatting()
         -- Expand all objective line labels to the full available tracker width. Since widths are not updated during combat (only text is via UpdateQuestLines),
         -- giving lines the maximum width here prevents text cutoff until the next full Update().
         TrackerLinePool.UpdateObjectiveLines(function(line)
-            local effectiveMarginLeft = objectiveMarginLeft
-            if line.questHasSecondaryQIB then
-                effectiveMarginLeft = objectiveMarginLeft + questItemButtonSize
-            end
-            local margin = effectiveMarginLeft + trackerMarginRight
-            line.label:SetWidth(trackerBaseFrame:GetWidth() - margin)
-            line:SetWidth(line.label:GetWidth() + effectiveMarginLeft)
+            local margin = objectiveMarginLeft + trackerMarginRight + (line.questItemInset or 0)
+            line.label:SetWidth(math.max(1, trackerBaseFrame:GetWidth() - margin))
+            line:SetWidth(line.label:GetWidth() + objectiveMarginLeft)
         end)
-        TrackerLinePool.ForEachQuestTitleLine(function(line)
-            line.label:SetWidth(trackerBaseFrame:GetWidth() - questMarginLeft - trackerMarginRight)
-            line:SetWidth(line.label:GetWidth() + questMarginLeft)
+        -- Measure title wrapping at the final width so following rows move down with the title.
+        local lineCount = TrackerLinePool.GetHighestIndex()
+        local entryHeight, focusBottom = 0, 0
+        local lastLineFocusHeight = 0
+        local focusCenter = margins.buttonSize / 2 - 1
+        local nextFocusOverhang = math.max(0, margins.focusButtonSize / 2 - focusCenter)
+        local focusGap = 2
+        for i = 1, lineCount do
+            local line = TrackerLinePool.GetLine(i)
+            if line.mode == "quest" or line.mode == "achieve" then
+                local marginLeft = line.titleMarginLeft
+                local label = line.label
+                local rightInset = line.questItemInset or 0
+                local lineWidth = trackerBaseFrame:GetWidth() - trackerMarginRight
+                local width = math.max(1, lineWidth - marginLeft - rightInset)
+                label:SetWidth(width)
+                label:SetWordWrap(true)
+                label:SetHeight(0)
 
-            TrackerLayout.TrackLineWidth(line.label:GetUnboundedStringWidth() + questMarginLeft)
-        end)
-        QuestieTracker:UpdateHeight()
+                local _, fontSize = label:GetFont()
+                local numLines = label:GetNumLines()
+                local height = fontSize
+                if numLines > 1 then
+                    height = (fontSize + 1) * numLines + 1
+                end
+                label:SetHeight(height)
+                if rightInset > 0 then
+                    lineWidth = lineWidth + TrackerLayout.ITEM_BUTTON_RIGHT_EXTENSION
+                end
+                line:SetWidth(math.max(width + marginLeft, lineWidth))
+                line:SetHeight(height + 4)
+                TrackerLayout.TrackLineWidth(label:GetUnboundedStringWidth() + marginLeft + rightInset)
+                entryHeight, focusBottom = 0, 0
+                if line.mode == "quest" and line.questFocus:IsShown() then
+                    focusBottom = focusCenter + margins.focusButtonSize / 2
+                end
+            end
+            if line.endsQuestEntry and focusBottom > 0 then
+                -- Leave room for the next title's icon below this quest's last line.
+                -- Padding the last line keeps the title-to-objective gap fixed.
+                local iconHeight = focusBottom - entryHeight
+                local normalHeight = line.label:GetHeight() + Questie.db.profile.trackerQuestPadding + 2
+                line:SetHeight(math.max(normalHeight, iconHeight + nextFocusOverhang + focusGap))
+                if i == lineCount then
+                    lastLineFocusHeight = iconHeight
+                end
+            end
+            entryHeight = entryHeight + line:GetHeight()
+        end
+        QuestieTracker:UpdateHeight(lastLineFocusHeight)
         TrackerQuestFrame:Update()
+    elseif trackerHeaderFrame.classicTheme then
+        QuestieTracker:UpdateWidth(0)
     end
 
     TrackerBaseFrame:Update()
@@ -1084,7 +1126,10 @@ function QuestieTracker:UpdateWidth(trackerVarsCombined)
     local headerShown = Questie.db.profile.trackerHeaderEnabled or (Questie.db.profile.alwaysShowTracker and (not TrackerUtils.HasQuest()))
     local trackerWidthCheck
 
-    if (not Questie.db.char.isTrackerExpanded) and headerShown then
+    if headerShown and Questie.db.profile.trackerClassicHeaderTheme then
+        -- Keep the banner at the selected width even when the quest list is short or collapsed.
+        trackerWidthCheck = trackerWidthByManual > 0 and trackerWidthByManual or trackerWidthByRatio
+    elseif (not Questie.db.char.isTrackerExpanded) and headerShown then
         trackerWidthCheck = trackerHeaderFrameWidth
     elseif trackerWidthByManual > 0 then
         if TrackerBaseFrame.isSizing then
@@ -1113,7 +1158,8 @@ function QuestieTracker:UpdateWidth(trackerVarsCombined)
     trackerQuestFrame.ScrollChildFrame:SetWidth(trackerWidthCheck)
 end
 
-function QuestieTracker:UpdateHeight()
+---@param lastLineFocusHeight number? Space needed for the final quest focus icon
+function QuestieTracker:UpdateHeight(lastLineFocusHeight)
     local trackerHeaderFrameHeight = trackerHeaderFrame:GetHeight() + Questie.db.profile.trackerFontSizeZone + 23
     local trackerHeightByRatio = GetScreenHeight() * Questie.db.profile.trackerHeightRatio
     local trackerHeightByManual = Questie.db.profile.TrackerHeight
@@ -1127,7 +1173,7 @@ function QuestieTracker:UpdateHeight()
             return
         end
 
-        currentLine:SetHeight(currentLine.label:GetStringHeight())
+        currentLine:SetHeight(math.max(currentLine.label:GetStringHeight(), lastLineFocusHeight or 0))
 
         -- Lines are stacked without gaps, so their summed heights are the content height.
         -- Screen coordinates (GetTop/GetBottom) are not used, because they are nil while the tracker has no resolved position.
@@ -1316,6 +1362,7 @@ function QuestieTracker:HookBaseTracker()
 end
 
 function QuestieTracker:RemoveQuest(questId)
+    Questie.db.char.PinnedQuests[questId] = nil
     TrackerData.RemoveQuest(questId)
     Questie.Debug(Questie.DEBUG_DEVELOP, "[QuestieTracker:RemoveQuest] - ", questId)
     if Questie.db.char.collapsedQuests then
@@ -1361,6 +1408,7 @@ end
 
 function QuestieTracker:UntrackQuestId(questId)
     Questie.Debug(Questie.DEBUG_DEVELOP, "[QuestieTracker:UntrackQuestId] - ", questId)
+    Questie.db.char.PinnedQuests[questId] = nil
     if not Questie.db.profile.autoTrackQuests then
         Questie.db.char.TrackedQuests[questId] = nil
     else
@@ -1390,8 +1438,9 @@ function QuestieTracker:UntrackQuestId(questId)
     end)
 end
 
----@param keepCollapsed boolean? Keeps the collapse state, e.g. when native watches are synced on startup
-function QuestieTracker:AQW_Insert(index, _expire, keepCollapsed)
+---@param watchTimer number? Legacy quest-watch duration
+---@param keepCollapsed boolean? Keeps saved tracker state when native watches are synced on startup
+function QuestieTracker:AQW_Insert(index, watchTimer, keepCollapsed)
     Questie.Debug(Questie.DEBUG_DEVELOP, "[QuestieTracker:AQW_Insert]")
     if (not Questie.db.profile.trackerEnabled) or (index == 0) or (index == nil) then
         return
@@ -1456,6 +1505,25 @@ function QuestieTracker:AQW_Insert(index, _expire, keepCollapsed)
         local quest = TrackerData.RefreshQuest(questId)
 
         if quest then
+            local profile, char = Questie.db.profile, Questie.db.char
+            if not QuestieTracker.IsTrackedByQuestie(questId) then
+                -- Legacy clients can toggle tracking off through this same watch hook.
+                char.PinnedQuests[questId] = nil
+            elseif profile.trackerAutoPinTrackedQuests and not keepCollapsed then
+                local manualWatch
+                if Questie.IsForever then
+                    local manualType = Enum.QuestWatchType and Enum.QuestWatchType.Manual or 1
+                    manualWatch = C_QuestLog.GetQuestWatchType(questId) == manualType
+                else
+                    manualWatch = (watchTimer ~= nil and watchTimer == QUEST_WATCH_NO_EXPIRE)
+                        or (IsShiftKeyDown() and QuestLogFrame and QuestLogFrame:IsShown())
+                        or (watchTimer == nil and not AutoQuestWatch_Insert)
+                end
+                if manualWatch then
+                    char.PinnedQuests[questId] = true
+                end
+            end
+
             -- Tracking is independent of map enrichment, including native-only quests.
             -- Expand the group the tracker lists this quest under, which depends on the sort mode.
             if (not keepCollapsed) then

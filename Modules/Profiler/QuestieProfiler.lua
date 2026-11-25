@@ -177,14 +177,14 @@ local function ShortenStackFrame(stackLine)
         stackLine = definitionFile .. ":" .. definitionLine
     end
 
-    -- Anchored on "AddOns/Questie/" rather than on "Interface", because WoW truncates a long path from the
-    -- left with an ellipsis - "...erface/AddOns/Questie/Modules/..." - and a match that needs the whole word
+    -- Anchored on "AddOns/DevsQuestTracker/" rather than on "Interface", because WoW truncates a long path from the
+    -- left with an ellipsis - "...erface/AddOns/DevsQuestTracker/Modules/..." - and a match that needs the whole word
     -- silently leaves the ellipsis and the full path in the job's name. Still specific enough that another
     -- addon's path cannot collapse into a Questie one.
-    stackLine = string.gsub(stackLine, "[^%[%]]-[Aa]dd[Oo]ns[/\\]+[Qq]uestie[/\\]+", "", 1)
+    stackLine = string.gsub(stackLine, "[^%[%]]-[Aa]dd[Oo]ns[/\\]+[Dd]evsQuestTracker[/\\]+", "", 1)
 
-    -- The match above still needs "AddOns/Questie/" intact, and for a window of path lengths the ellipsis
-    -- cut lands inside the marker itself - "...Ons/Questie/Modules/..." or "...stie/Modules/..." - keeping
+    -- The match above still needs "AddOns/DevsQuestTracker/" intact, and for a window of path lengths the ellipsis
+    -- cut lands inside the marker itself - "...Ons/DevsQuestTracker/Modules/..." or "...Tracker/Modules/..." - keeping
     -- the exact ellipsis-and-path name this function exists to remove. What sits between the ellipsis and
     -- the first slash can then only be the tail of a marker directory, so it is judged as a suffix. A
     -- foreign addon whose truncated name merely ends like "AddOns" keeps its path: the strip needs the
@@ -193,11 +193,11 @@ local function ShortenStackFrame(stackLine)
     if ellipsisFragment then
         local lowerFragment = string.lower(ellipsisFragment)
         if lowerFragment == "" or string.sub("addons", -string.len(lowerFragment)) == lowerFragment then
-            local strippedPath, questieMatches = string.gsub(afterFragment, "^[Qq]uestie[/\\]+", "")
+            local strippedPath, questieMatches = string.gsub(afterFragment, "^[Dd]evsQuestTracker[/\\]+", "")
             if questieMatches > 0 then
                 stackLine = strippedPath
             end
-        elseif string.sub("questie", -string.len(lowerFragment)) == lowerFragment then
+        elseif string.sub("devsquesttracker", -string.len(lowerFragment)) == lowerFragment then
             stackLine = afterFragment
         end
     end

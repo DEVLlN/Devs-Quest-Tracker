@@ -24,6 +24,7 @@ describe("QuestieTracker", function()
 
     before_each(function()
         Questie.db.char = {
+            PinnedQuests = {},
             collapsedQuests = {},
             AutoUntrackedQuests = {},
             TrackedQuests = {},

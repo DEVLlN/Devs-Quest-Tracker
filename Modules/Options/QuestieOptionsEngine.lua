@@ -489,7 +489,7 @@ function QuestieOptionsEngine:Initialize()
         if mainCategory then
             category = Settings.RegisterCanvasLayoutSubcategory(mainCategory, canvas, l10n(tab.data.title))
         else
-            category = Settings.RegisterCanvasLayoutCategory(canvas, l10n("Questie"))
+            category = Settings.RegisterCanvasLayoutCategory(canvas, "DeV's Quest Tracker")
             mainCategory = category
         end
         Settings.RegisterAddOnCategory(category)
