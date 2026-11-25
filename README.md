@@ -4,9 +4,11 @@ DeV's Quest Tracker is an unofficial fork of [Questie](https://github.com/Questi
 
 ## Install on WoW Forever
 
-1. Download the `DevsQuestTracker` ZIP from [Releases](https://github.com/DEVLlN/Devs-Quest-Tracker/releases) and extract the `DevsQuestTracker` folder into `World of Warcraft/_forever_/Interface/AddOns/`.
-2. If `QuestieDB` is missing, download the [official Questie 12.14.0 bundle](https://github.com/Questie/Questie/releases/tag/bundle%2Fv12.14.0%2Bv1.1.6) and copy its `QuestieDB` folder into the same AddOns directory. This build uses QuestieDB 1.1.6.
-3. In WoW's AddOns list, disable Questie and enable DeV's Quest Tracker and QuestieDB. Type `/devstracker` in game to open the options.
+1. Download the [complete Forever ZIP from Releases](https://github.com/DEVLlN/Devs-Quest-Tracker/releases).
+2. Extract both folders, `DevsQuestTracker` and `QuestieDB`, directly into `World of Warcraft/_forever_/Interface/AddOns/`.
+3. In WoW's AddOns list, enable DeV's Quest Tracker and QuestieDB, and disable stock Questie if installed. Type `/devstracker` in game to open the options.
+
+The complete ZIP includes the [official QuestieDB 1.1.6 Forever build](https://github.com/Questie/QuestieDB/releases/tag/v1.1.6). Use the tracker-only ZIP if you manage QuestieDB separately.
 
 The fork stores its own settings. New installations start with the addon's defaults.
 
