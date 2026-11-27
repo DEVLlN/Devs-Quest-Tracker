@@ -1,6 +1,6 @@
 # DeV's Quest Tracker
 
-DeV's Quest Tracker is an unofficial fork of [Questie](https://github.com/Questie/Questie), based on Questie 12.14.0. This development release targets World of Warcraft Forever.
+DeV's Quest Tracker is an unofficial fork of [Questie](https://github.com/Questie/Questie), based on Questie 12.15.0. This development release targets World of Warcraft Forever.
 
 ## Install on WoW Forever
 
@@ -17,7 +17,7 @@ The fork stores its own settings. New installations start with the addon's defau
 - Quest titles and objectives wrap. The auto-width slider goes down to 5%.
 - Quest focus buttons scale independently up to 200%. Quest item buttons appear on the right.
 - The optional Classic header fills the tracker width and scales with the font, including the settings and minimize buttons. The question mark can be hidden or faded until hover.
-- The tracker can open the current zone and collapse other zone groups. Pinned quests have a group at the top. An option pins quests when manually tracked and removes the pin when untracked.
+- The tracker can open the current zone and collapse other zone groups. Pinned quests have a group at the top. An option pins quests when manually tracked and removes the pin when untracked. Right-click an active quest in the map quest log to pin it directly.
 
 ## Build from source
 

@@ -10,7 +10,8 @@ describe("TaintWatch", function()
     local originalDb
     local globalNames = {"issecurevariable", "geterrorhandler", "debugstack", "GetTime", "GetCVar", "C_Timer", "CreateFrame",
                          "hooksecurefunc", "WorldMapFrame", "ObjectiveTrackerFrame", "QuestFrameDetailPanel",
-                         "QuestDetailScrollChildFrame", "C_AddOns", "InCombatLockdown"}
+                         "QuestDetailScrollChildFrame", "C_AddOns", "InCombatLockdown", "ShowUIPanel", "HideUIPanel",
+                         "CloseSpecialWindows"}
 
     before_each(function()
         for _, name in ipairs(globalNames) do
@@ -110,6 +111,24 @@ describe("TaintWatch", function()
 
             assert.are.same(40, #_TaintWatch.notes)
             assert.are.same(6, _TaintWatch.notes[1].detail)
+        end)
+
+        it("should keep the first time of each Questie action after its notes dropped out", function()
+            TaintWatch.Note("HideUIPanel WorldMapFrame")
+            now = 200
+            for i = 1, 45 do
+                TaintWatch.Note("note", i)
+            end
+
+            local report = _TaintWatch.BuildReport("title")
+
+            assert.truthy(report:find("First time of each Questie action this session:\n  -0.0s note 1\n  -100.0s HideUIPanel WorldMapFrame", 1, true))
+        end)
+
+        it("should not keep the first time of Blizzard events", function()
+            TaintWatch.Note("[event] ShowUIPanel", "QuestFrame")
+
+            assert.is_nil(_TaintWatch.firstActions["[event] ShowUIPanel"])
         end)
     end)
 
@@ -308,6 +327,28 @@ describe("TaintWatch", function()
         end)
     end)
 
+    describe("quest details", function()
+        it("should report a quest details value that Questie tainted", function()
+            _G.QuestMapFrame = {DetailsFrame = {}}
+            TaintWatch.Initialize()
+            taintedValues[_G.QuestMapFrame.DetailsFrame] = {questID = "Questie"}
+
+            tickerCallback()
+
+            assert.spy(errorHandler).was.called(1)
+            local report = errorHandler.calls[1].vals[1]
+            assert.truthy(report:find("QuestMapFrame.DetailsFrame.questID was tainted by Questie", 1, true))
+            _G.QuestMapFrame = nil
+        end)
+
+        it("should not fail when the quest map frame does not exist", function()
+            _G.QuestMapFrame = nil
+            TaintWatch.Initialize()
+
+            assert.has_no.errors(function() tickerCallback() end)
+        end)
+    end)
+
     describe("hooks", function()
         it("should note when the world map is shown and hidden", function()
             local scripts = {}
@@ -319,6 +360,36 @@ describe("TaintWatch", function()
 
             assert.are.same("[event] WorldMap shown", _TaintWatch.notes[1].label)
             assert.are.same("[event] WorldMap hidden", _TaintWatch.notes[2].label)
+        end)
+
+        it("should note when Blizzard's panel manager shows or hides a panel, or Escape closes the open windows", function()
+            local hooks = {}
+            _G.hooksecurefunc = function(functionName, hook) hooks[functionName] = hook end
+            _G.ShowUIPanel, _G.HideUIPanel, _G.CloseSpecialWindows = function() end, function() end, function() end
+            TaintWatch.Initialize()
+            local questFrame = {GetName = function() return "QuestFrame" end, IsForbidden = function() return false end}
+
+            hooks.ShowUIPanel(questFrame)
+            hooks.HideUIPanel(questFrame)
+            hooks.CloseSpecialWindows()
+
+            assert.are.same({"[event] ShowUIPanel", "QuestFrame"}, {_TaintWatch.notes[1].label, _TaintWatch.notes[1].detail})
+            assert.are.same({"[event] HideUIPanel", "QuestFrame"}, {_TaintWatch.notes[2].label, _TaintWatch.notes[2].detail})
+            assert.are.same("[event] CloseSpecialWindows", _TaintWatch.notes[3].label)
+            assert.is_nil(_TaintWatch.notes[3].detail)
+        end)
+
+        it("should not read the name of a forbidden panel", function()
+            local hooks = {}
+            _G.hooksecurefunc = function(functionName, hook) hooks[functionName] = hook end
+            _G.ShowUIPanel = function() end
+            TaintWatch.Initialize()
+            local forbiddenFrame = {GetName = spy.new(function() end), IsForbidden = function() return true end}
+
+            hooks.ShowUIPanel(forbiddenFrame)
+
+            assert.spy(forbiddenFrame.GetName).was.not_called()
+            assert.is_nil(_TaintWatch.notes[1].detail)
         end)
 
         it("should not build a stack for a capture that would be discarded", function()

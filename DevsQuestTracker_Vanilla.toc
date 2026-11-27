@@ -1,5 +1,5 @@
 ## Interface: 11508, 11509
-## Title: DeV's Quest Tracker|cFF00FF00 v12.14.0|r
+## Title: DeV's Quest Tracker|cFF00FF00 v12.15.0-dev.1|r
 ## Author: Aero/Logon/Muehe/TheCrux(BreakBB)/Drejjmit/Dyaxler/Cheeq/TechnoHunter/Yttrium/Everyone else
 ## Notes: Unofficial fork of Questie with tracker customization.
 ## Notes-deDE: Ein Quest-Helfer
@@ -22,7 +22,7 @@
 ## Category-ruRU: Задания
 ## Category-zhCN: 任务
 ## Category-zhTW: 任務
-## Version: 12.14.0
+## Version: 12.15.0-dev.1
 ## X-QuestieDB-Contract: 4
 ## OptionalDeps: QuestieDB, QuestieTrace, Ace3, CallbackHandler-1.0, HereBeDragons, Krowi_WorldMapButtons, LibDataBroker-1.1, LibDBIcon-1.0, LibSharedMedia-3.0, LibStub
 ## LoadSavedVariablesFirst: 1
@@ -205,6 +205,7 @@ Modules\Quest\AvailableQuests\IsLevelRequirementFulfilled.lua
 Modules\Quest\AvailableQuests\AvailableQuests.lua
 Modules\Quest\QuestLogCache.lua
 Modules\Quest\ActiveQuests.lua
+Modules\Quest\CompletedQuests.lua
 Modules\Quest\DailyQuests\DailyQuests.lua
 Modules\Quest\DailyQuests\QuestHubs.lua
 Modules\Quest\IsleOfQuelDanas.lua
@@ -263,8 +264,10 @@ Modules\Tracker\Sections\ScenarioSection.lua
 Modules\Tracker\Sections\AchievementSection.lua
 Modules\Tracker\Sections\QuestSection.lua
 Modules\Tracker\QuestieTracker.lua
+Modules\Tracker\QuestAcceptOrder.lua
 Modules\Tracker\Sorter\Sorter.lua
 Modules\Tracker\Sorter\byComplete.lua
+Modules\Tracker\Sorter\byAcceptOrder.lua
 Modules\Tracker\Sorter\byLevel.lua
 Modules\Tracker\Sorter\byZone.lua
 Modules\Tracker\TrackerUtils.lua
