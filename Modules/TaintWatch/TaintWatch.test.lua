@@ -331,7 +331,7 @@ describe("TaintWatch", function()
         it("should report a quest details value that Questie tainted", function()
             _G.QuestMapFrame = {DetailsFrame = {}}
             TaintWatch.Initialize()
-            taintedValues[_G.QuestMapFrame.DetailsFrame] = {questID = "Questie"}
+            taintedValues[_G.QuestMapFrame.DetailsFrame] = {questID = "DevsQuestTracker"}
 
             tickerCallback()
 
