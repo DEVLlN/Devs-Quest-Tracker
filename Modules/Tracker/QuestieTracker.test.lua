@@ -337,6 +337,72 @@ describe("QuestieTracker", function()
             removeWatchMock:revert()
         end)
 
+        describe("quest log pin menus", function()
+            local originalMenu, menus, createButton
+
+            before_each(function()
+                originalMenu = _G.Menu
+                menus = {}
+                _G.Menu = {
+                    ModifyMenu = function(tag, callback) menus[tag] = callback end,
+                }
+                dofile("Localization/l10n.lua")
+                TrackerData.ContainsQuest = function(id) return id == 91741 end
+                QuestieLoader:ImportModule("TrackerQuestTimers").HideBlizzardTimer = function() end
+                QuestieTracker.alreadyHooked = nil
+                QuestieTracker.alreadyHookedSecure = nil
+                QuestieTracker:HookBaseTracker()
+
+                createButton = spy.new(function() end)
+            end)
+
+            after_each(function()
+                _G.Menu = originalMenu
+            end)
+
+            it("pins and unpins a tracked quest from the quest row and the details popup", function()
+                local owner = {questID = 91741}
+                local root = {CreateButton = createButton}
+                menus.MENU_QUEST_MAP_LOG_TITLE(owner, root)
+                assert.equal("Pin to Tracker", createButton.calls[1].vals[2])
+                createButton.calls[1].vals[3]()
+                assert.is_true(Questie.db.char.PinnedQuests[91741])
+
+                menus.MENU_QUEST_LOG_POPUP_DETAIL_FRAME(owner, root)
+                assert.equal("Unpin from Tracker", createButton.calls[2].vals[2])
+                createButton.calls[2].vals[3]()
+                assert.is_nil(Questie.db.char.PinnedQuests[91741])
+                assert.is_true(QuestieTracker.IsTrackedByQuestie(91741))
+            end)
+
+            it("starts tracking an untracked quest when it is pinned", function()
+                Questie.db.profile.autoTrackQuests = false
+                _G.C_QuestLog.GetQuestWatchType = function() return nil end
+                _G.C_QuestLog.AddQuestWatch = spy.new(function() end)
+                local indexMock = stub(QuestieLoader:ImportModule("QuestieCompat"), "GetQuestLogIndexByID", function()
+                    return 2
+                end)
+
+                menus.MENU_QUEST_MAP_LOG_TITLE({questID = 91741}, {CreateButton = createButton})
+                createButton.calls[1].vals[3]()
+                indexMock:revert()
+
+                assert.spy(_G.C_QuestLog.AddQuestWatch).was.called_with(91741)
+                assert.is_true(Questie.db.char.TrackedQuests[91741])
+                assert.is_true(Questie.db.char.PinnedQuests[91741])
+            end)
+
+            it("skips waypoints and ignores a queued click after the quest leaves the log", function()
+                menus.MENU_QUEST_MAP_LOG_TITLE({}, {CreateButton = createButton})
+                assert.spy(createButton).was.not_called()
+
+                menus.MENU_QUEST_MAP_LOG_TITLE({questID = 91741}, {CreateButton = createButton})
+                TrackerData.ContainsQuest = function() return false end
+                createButton.calls[1].vals[3]()
+                assert.is_nil(Questie.db.char.PinnedQuests[91741])
+            end)
+        end)
+
         it("keeps Classic's watch migration when tracking a quest without database enrichment", function()
             Questie.IsForever = false
             Questie.db.profile.autoTrackQuests = false

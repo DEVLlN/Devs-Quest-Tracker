@@ -534,10 +534,7 @@ function TrackerMenu:GetMenuForQuest(quest)
     tinsert(menu, {
         text = pinned and l10n("Unpin Quest") or l10n("Pin Quest to Top"),
         func = function()
-            if TrackerData.ContainsQuest(questId) and QuestieTracker.IsTrackedByQuestie(questId) then
-                Questie.db.char.PinnedQuests[questId] = not pinned or nil
-                QuestieCombatQueue:Queue(function() QuestieTracker:Update() end)
-            end
+            QuestieTracker.SetQuestPinned(questId, not pinned)
         end,
     })
 

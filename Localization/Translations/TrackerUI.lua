@@ -2,6 +2,12 @@
 local l10n = QuestieLoader:ImportModule("l10n")
 
 local trackerUILocales = {
+    ["Pin to Tracker"] = {
+        ["enUS"] = true,
+    },
+    ["Unpin from Tracker"] = {
+        ["enUS"] = true,
+    },
     ["Questie Tracker"] = {
         ["enUS"] = true,
         ["deDE"] = "Aktive Quests",

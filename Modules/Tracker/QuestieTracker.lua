@@ -1285,6 +1285,50 @@ function QuestieTracker:Unhook()
     QuestieTracker.alreadyHooked = nil
 end
 
+---Changes the pin for a quest already tracked by Questie.
+---@param questId QuestId
+---@param pinned boolean
+function QuestieTracker.SetQuestPinned(questId, pinned)
+    if not TrackerData.ContainsQuest(questId) or not QuestieTracker.IsTrackedByQuestie(questId) then
+        return
+    end
+
+    Questie.db.char.PinnedQuests[questId] = pinned or nil
+    QuestieCombatQueue:Queue(function() QuestieTracker:Update() end)
+end
+
+local function _AddQuestLogPinOption(owner, rootDescription)
+    -- Forever's quest row and popup both pass an owner with questID. The map
+    -- waypoint shares the quest row's menu tag but carries no questID.
+    local questId = owner and owner.questID
+    if not questId or not Questie.db.profile.trackerEnabled or not TrackerData.ContainsQuest(questId) then
+        return
+    end
+
+    local shouldPin = not Questie.db.char.PinnedQuests[questId]
+    rootDescription:CreateButton(l10n(shouldPin and "Pin to Tracker" or "Unpin from Tracker"), function()
+        QuestieCombatQueue:Queue(function()
+            if not Questie.db.profile.trackerEnabled or not TrackerData.ContainsQuest(questId) then
+                return
+            end
+
+            if shouldPin and not QuestieTracker.IsTrackedByQuestie(questId) then
+                if not C_QuestLog.GetQuestWatchType(questId) then
+                    TaintWatch.Note("AddQuestWatch", questId)
+                    C_QuestLog.AddQuestWatch(questId)
+                end
+                if not QuestieTracker.IsTrackedByQuestie(questId) then
+                    -- A native watch can already exist or the native watch list can be full.
+                    -- Use the same Questie tracking path as the watch hook in either case.
+                    QuestieTracker:AQW_Insert(QuestieCompat.GetQuestLogIndexByID(questId), QUEST_WATCH_NO_EXPIRE)
+                end
+            end
+
+            QuestieTracker.SetQuestPinned(questId, shouldPin)
+        end)
+    end)
+end
+
 function QuestieTracker:HookBaseTracker()
     if QuestieTracker.alreadyHooked then
         return
@@ -1304,6 +1348,8 @@ function QuestieTracker:HookBaseTracker()
 
         -- Forever's quest log calls the namespaced API with IDs, bypassing the legacy index wrappers.
         if Questie.IsForever then
+            Menu.ModifyMenu("MENU_QUEST_MAP_LOG_TITLE", _AddQuestLogPinOption)
+            Menu.ModifyMenu("MENU_QUEST_LOG_POPUP_DETAIL_FRAME", _AddQuestLogPinOption)
             hooksecurefunc(C_QuestLog, "AddQuestWatch", function(questId)
                 if QuestieTracker.disableHooks or not Questie.db.profile.trackerEnabled then
                     return

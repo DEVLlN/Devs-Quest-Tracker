@@ -69,6 +69,7 @@ describe("TrackerMenu", function()
         _G.StaticPopupDialogs = {}
         Questie.db = {
             char = {
+                PinnedQuests = {},
                 TrackerHiddenObjectives = {},
                 TrackerHiddenQuests = {},
                 collapsedQuests = {},
@@ -115,7 +116,7 @@ describe("TrackerMenu", function()
                 labels[#labels + 1] = entry.text
             end
             assert.are.same({
-                "Nibbled-On Book", "Minimize Quest", "Show in Quest Log", "Link Quest to chat",
+                "Nibbled-On Book", "Pin Quest to Top", "Minimize Quest", "Show in Quest Log", "Link Quest to chat",
                 "Untrack Quest", "Abandon Quest", "|cFF39c0edWoWHead URL|r", "Lock Tracker", CANCEL,
             }, labels)
         end)
@@ -134,10 +135,10 @@ describe("TrackerMenu", function()
             local menu = TrackerMenu:GetMenuForQuest(quest)
 
             assert.spy(TrackerUtils.CanShareQuest).was.called_with(100)
-            assert.are.same({"Objectives", "Share Quest", "Focus Quest"}, {menu[2].text, menu[3].text, menu[4].text})
+            assert.are.same({"Objectives", "Share Quest", "Focus Quest"}, {menu[3].text, menu[4].text, menu[5].text})
         end)
 
-        it("should offer sharing a complete quest right after its title", function()
+        it("should offer sharing a complete quest after the pin action", function()
             TrackerUtils.CanShareQuest = function() return true end
             local quest = {
                 Id = 91741, name = "Nibbled-On Book", Objectives = {}, SpecialObjectives = {},
@@ -146,7 +147,7 @@ describe("TrackerMenu", function()
 
             local menu = TrackerMenu:GetMenuForQuest(quest)
 
-            assert.are.equal("Share Quest", menu[2].text)
+            assert.are.equal("Share Quest", menu[3].text)
         end)
 
         it("uses the original verified objective for hiding and showing map icons", function()
@@ -161,9 +162,9 @@ describe("TrackerMenu", function()
             displayQuests[100] = quest
             local menu = TrackerMenu:GetMenuForQuest(quest)
             assert.spy(TrackerData.RefreshQuest).was.not_called()
-            assert.are.equal("Objectives", menu[2].text)
-            assert.are.equal("3/5 Wolves slain.", menu[2].menuList[1].text)
-            local objectiveMenu = menu[2].menuList[1].menuList
+            assert.are.equal("Objectives", menu[3].text)
+            assert.are.equal("3/5 Wolves slain.", menu[3].menuList[1].text)
+            local objectiveMenu = menu[3].menuList[1].menuList
             assert.are.equal("Hide Icons", objectiveMenu[2].text)
             objectiveMenu[2].func()
             assert.is_true(originalObjective.HideIcons)
@@ -198,15 +199,15 @@ describe("TrackerMenu", function()
 
             local menu = TrackerMenu:GetMenuForQuest(quest)
             assert.are.equal(1, _CountTomTomEntries(menu))
-            assert.are.equal(1, _CountTomTomEntries(menu[2].menuList[1].menuList))
-            assert.are.equal(1, _CountTomTomEntries(menu[2].menuList[2].menuList))
+            assert.are.equal(1, _CountTomTomEntries(menu[3].menuList[1].menuList))
+            assert.are.equal(1, _CountTomTomEntries(menu[3].menuList[2].menuList))
 
             TrackerUtils.IsTomTomAvailable = function() return false end
 
             menu = TrackerMenu:GetMenuForQuest(quest)
             assert.are.equal(0, _CountTomTomEntries(menu))
-            assert.are.equal(0, _CountTomTomEntries(menu[2].menuList[1].menuList))
-            assert.are.equal(0, _CountTomTomEntries(menu[2].menuList[2].menuList))
+            assert.are.equal(0, _CountTomTomEntries(menu[3].menuList[1].menuList))
+            assert.are.equal(0, _CountTomTomEntries(menu[3].menuList[2].menuList))
         end)
 
         it("shows every located objective from the root menu of an incomplete quest", function()
@@ -289,8 +290,8 @@ describe("TrackerMenu", function()
                 assert.are_not.equal("Focus Quest", entry.text)
                 assert.are_not.equal("Hide Icons", entry.text)
             end
-            assert.are.equal("Objectives", menu[2].text)
-            assert.are.equal(1, #menu[2].menuList)
+            assert.are.equal("Objectives", menu[3].text)
+            assert.are.equal(1, #menu[3].menuList)
         end)
     end)
 
