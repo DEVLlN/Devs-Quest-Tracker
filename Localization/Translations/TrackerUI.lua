@@ -2,6 +2,12 @@
 local l10n = QuestieLoader:ImportModule("l10n")
 
 local trackerUILocales = {
+    ["Combat Category Toggles (Beta)"] = {
+        ["enUS"] = true,
+    },
+    ["Expand or collapse tracker categories during combat when possible. The tracker's quest-item buttons dim and cannot be clicked until combat ends."] = {
+        ["enUS"] = true,
+    },
     ["Show Dungeon Marker"] = {
         ["enUS"] = true,
     },
@@ -22,6 +28,18 @@ local trackerUILocales = {
     },
     ["Unpin from Tracker"] = {
         ["enUS"] = true,
+    },
+    ["Quest Tracker"] = {
+        ["enUS"] = true,
+        ["deDE"] = "Aktive Quests",
+        ["esES"] = "Rastreador de misiones",
+        ["esMX"] = "Rastreador de misiones",
+        ["frFR"] = "Suivi des quêtes",
+        ["koKR"] = "활성 퀘스트",
+        ["ptBR"] = "Rastreador de missões",
+        ["ruRU"] = "Активные задания",
+        ["zhCN"] = "任务追踪器",
+        ["zhTW"] = "任務",
     },
     ["Questie Tracker"] = {
         ["enUS"] = true,

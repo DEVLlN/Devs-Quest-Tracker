@@ -87,6 +87,25 @@ describe("TrackerLine untrack click", function()
         _G.IsShiftKeyDown = function() return true end
     end
 
+    it("toggles the clicked quest's manual pin with the pin shortcut", function()
+        Questie.db.profile.trackerbindPinQuest = "ctrlright"
+        Questie.db.char = {PinnedQuests = {}}
+        tracker.SetQuestPinned = spy.new(function(id, pinned)
+            Questie.db.char.PinnedQuests[id] = pinned or nil
+        end)
+        _HoldControl()
+        local line = TrackerLine.New(1, {}, nil, function() end, function() end, function() end)
+        line:SetQuest({Id = 123})
+        line:SetOnClick("quest")
+
+        line.scripts.OnClick(line, "RightButton")
+        line.scripts.OnClick(line, "RightButton")
+
+        assert.spy(tracker.SetQuestPinned).was.called_with(123, true)
+        assert.spy(tracker.SetQuestPinned).was.called_with(123, false)
+        assert.spy(tracker.UntrackQuestId).was.not_called()
+    end)
+
     it("should highlight the quest while hovering a button in front of the title", function()
         local onEnter, onLeave = spy.new(function() end), spy.new(function() end)
         local line = TrackerLine.New(1, {}, nil, onEnter, onLeave, function() end)

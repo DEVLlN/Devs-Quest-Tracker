@@ -7,11 +7,13 @@ local TrackerShortcuts = QuestieLoader:CreateModule("TrackerShortcuts")
 -- a Left Click shortcut. Together with Set, which keeps a click bound to one action, a click runs at most one action.
 -- The one exception is linking to chat, which no shortcut does: Shift + Left Click links while the chat input is open.
 
----@alias TrackerShortcutSetting "trackerbindOpenQuestLog"|"trackerbindUntrack"|"trackerbindShareQuest"|"trackerbindSetTomTom"
+---@alias TrackerShortcutSetting "trackerbindOpenQuestLog"|"trackerbindUntrack"|"trackerbindShareQuest"|"trackerbindSetTomTom"|"trackerbindPinQuest"
 
 ---Every profile setting that binds a shortcut to a tracker action.
 ---@type TrackerShortcutSetting[]
-local SHORTCUT_SETTINGS = {"trackerbindOpenQuestLog", "trackerbindUntrack", "trackerbindShareQuest", "trackerbindSetTomTom"}
+local SHORTCUT_SETTINGS = {
+    "trackerbindOpenQuestLog", "trackerbindUntrack", "trackerbindShareQuest", "trackerbindSetTomTom", "trackerbindPinQuest",
+}
 
 ---The shortcut name of each mouse button a shortcut can use.
 local SHORTCUT_BUTTONS = {LeftButton = "left", RightButton = "right"}

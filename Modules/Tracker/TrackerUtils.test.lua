@@ -685,6 +685,43 @@ describe("TrackerUtils", function()
     end)
 
     describe("AddQuestItemButtons", function()
+        it("draws a dim item icon in combat without accessing secure buttons", function()
+            local originalForever, originalCombat = Questie.IsForever, _G.InCombatLockdown
+            local originalIcon, originalGetButton = TrackerLinePool.AddCombatItemIcon, TrackerLinePool.GetNextItemButton
+            local originalBeta = Questie.db.profile.trackerCombatCategoryToggles
+            local getIcon = spy.new(function() return 456 end)
+            local originalGetIcon = QuestieLoader:ImportModule("QuestieCompat").GetItemIcon
+            local layout = QuestieLoader:ImportModule("TrackerLayout")
+            local originalMargins, originalGap, originalExtension =
+                layout.GetMargins, layout.ITEM_BUTTON_GAP, layout.ITEM_BUTTON_RIGHT_EXTENSION
+            local items = stub(TrackerUtils, "GetQuestItemIds", function() return {123} end)
+            local dimIcon = spy.new(function() end)
+            local getButton = spy.new(function() end)
+            Questie.IsForever = true
+            Questie.db.profile.trackerCombatCategoryToggles = true
+            _G.InCombatLockdown = function() return true end
+            TrackerLinePool.AddCombatItemIcon, TrackerLinePool.GetNextItemButton = dimIcon, getButton
+            QuestieLoader:ImportModule("QuestieCompat").GetItemIcon = getIcon
+            layout.GetMargins = function() return {itemButtonSize = 16} end
+            layout.ITEM_BUTTON_GAP, layout.ITEM_BUTTON_RIGHT_EXTENSION = 4, 12
+            local line = _GetMockedLine()
+            local quest = {Id = 1, sourceItemId = 123, Objectives = {}, ObjectiveData = {}}
+
+            local shouldContinue, inset = TrackerUtils.AddQuestItemButtons(quest, 0, line, false, false)
+
+            Questie.IsForever, _G.InCombatLockdown = originalForever, originalCombat
+            Questie.db.profile.trackerCombatCategoryToggles = originalBeta
+            TrackerLinePool.AddCombatItemIcon, TrackerLinePool.GetNextItemButton = originalIcon, originalGetButton
+            QuestieLoader:ImportModule("QuestieCompat").GetItemIcon = originalGetIcon
+            layout.GetMargins, layout.ITEM_BUTTON_GAP, layout.ITEM_BUTTON_RIGHT_EXTENSION =
+                originalMargins, originalGap, originalExtension
+            items:revert()
+            assert.is_true(shouldContinue)
+            assert.equal(8, inset)
+            assert.spy(dimIcon).was.called_with(line, 1, 456, 16, 0)
+            assert.spy(getButton).was.not_called()
+        end)
+
         it("should add sourceItemId as primary button", function()
             getItemSpellMock.returns("Use Quest Item", 111)
             getItemCountMock.returns(1)
@@ -1612,10 +1649,14 @@ describe("TrackerUtils", function()
     end)
 
     describe("GetSortedQuestIds", function()
+        local focusButton
+
         before_each(function()
             trackerQuests = {}
             Questie.db.profile.trackerSortObjectives = "byZone"
             QuestieLib.GetQuestTypeSuffix = function() return "" end
+            focusButton = QuestieLoader:ImportModule("QuestFocusButton")
+            focusButton.GetAutoPinnedQuestId = function() end
 
             dofile("Modules/Tracker/Sorter/Sorter.lua")
             dofile("Modules/Tracker/Sorter/byComplete.lua")
@@ -1663,6 +1704,63 @@ describe("TrackerUtils", function()
             assert.are.same({1}, ids)
             assert.are.same({2}, pinnedIds)
             assert.are.equal(trackerQuests[2], details[2].quest)
+        end)
+
+        it("returns an unfocused quest to its zone and retains separately pinned quests", function()
+            Questie.db.char.PinnedQuests[2] = true
+            trackerQuests = {
+                [1] = {Id = 1, level = 2, zoneName = "Northshire Abbey", Objectives = {}, IsComplete = function() return 0 end},
+                [2] = {Id = 2, level = 3, zoneName = "Elwynn Forest", Objectives = {}, IsComplete = function() return 0 end},
+            }
+            local focusedId = 1
+            focusButton.GetAutoPinnedQuestId = function() return focusedId end
+
+            local ids, _, pinnedIds = TrackerUtils:GetSortedQuestIds()
+            assert.are.same({}, ids)
+            assert.are.same(2, #pinnedIds)
+
+            focusedId = nil
+            ids, _, pinnedIds = TrackerUtils:GetSortedQuestIds()
+            assert.are.same({1}, ids)
+            assert.are.same({2}, pinnedIds)
+
+            -- Focusing the same quest that was manually pinned neither duplicates nor removes its pin.
+            focusedId = 2
+            ids, _, pinnedIds = TrackerUtils:GetSortedQuestIds()
+            assert.are.same({1}, ids)
+            assert.are.same({2}, pinnedIds)
+
+            focusedId = nil
+            ids, _, pinnedIds = TrackerUtils:GetSortedQuestIds()
+            assert.are.same({1}, ids)
+            assert.are.same({2}, pinnedIds)
+        end)
+
+        it("groups completed tracked quests while keeping a completed manual pin in Pinned Quests", function()
+            local profile = Questie.db.profile
+            profile.trackerGroupCompletedQuests = true
+            Questie.db.char.PinnedQuests[1] = true
+            QuestieTracker.IsTrackedByQuestie = function(id) return id ~= 4 end
+            trackerQuests = {}
+            for id, state in ipairs({1, 1, -1, 1, 0}) do
+                trackerQuests[id] = {
+                    Id = id, level = id, zoneName = "Northshire Abbey", Objectives = {},
+                    IsComplete = function() return state end,
+                }
+            end
+            trackerQuests[3].isComplete = true
+            trackerQuests[5].isComplete = true
+
+            local ids, _, pinnedIds, completedIds = TrackerUtils:GetSortedQuestIds()
+            assert.are.same({3, 4}, ids)
+            assert.are.same({1}, pinnedIds)
+            assert.are.same({2, 5}, completedIds)
+
+            profile.trackerGroupCompletedQuests = false
+            ids, _, pinnedIds, completedIds = TrackerUtils:GetSortedQuestIds()
+            assert.are.same({2, 3, 4, 5}, ids)
+            assert.are.same({1}, pinnedIds)
+            assert.are.same({}, completedIds)
         end)
 
         it("does not treat pending or zero-total objectives as completed", function()

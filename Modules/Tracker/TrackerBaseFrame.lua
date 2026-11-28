@@ -29,6 +29,19 @@ TrackerBaseFrame.isMoving = false
 
 local _OnEnter, _SetSizerTooltip
 
+local function _RefreshForeverTrackerAttachment()
+    if not Questie.IsForever then
+        return
+    end
+    local host = _G.ForeverTrackerHost
+    local companion = _G.ForeverTrackerCompanion
+    -- ForeverCore recognizes Questie_BaseFrame and positions its own column from its geometry.
+    if host and host.IsAttachedToQuestTracker and host.IsAttachedToQuestTracker()
+        and companion and companion.MarkDirty then
+        companion:MarkDirty()
+    end
+end
+
 function TrackerBaseFrame.Initialize()
     baseFrame = CreateFrame("Frame", "Questie_BaseFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
     baseFrame:SetClampedToScreen(true) -- We don't want this frame to be able to move off screen at all!
@@ -164,6 +177,12 @@ function TrackerBaseFrame.Initialize()
     TrackerBaseFrame.IsInitialized = true
     TrackerBaseFrame.baseFrame = baseFrame
 
+    if Questie.IsForever then
+        baseFrame:HookScript("OnShow", _RefreshForeverTrackerAttachment)
+        baseFrame:HookScript("OnHide", _RefreshForeverTrackerAttachment)
+        baseFrame:HookScript("OnSizeChanged", _RefreshForeverTrackerAttachment)
+    end
+
     return baseFrame
 end
 
@@ -279,6 +298,7 @@ function TrackerBaseFrame:SetSafePoint()
         Questie.db.profile.TrackerLocation = { trackerSetPoint, "UIParent", "CENTER", resetCords[trackerSetPoint].x, resetCords[trackerSetPoint].y }
     end
 
+    _RefreshForeverTrackerAttachment()
     QuestieTracker:Update()
 end
 
@@ -361,6 +381,7 @@ local function _UpdateTrackerPosition()
         Questie.db.profile.TrackerLocation = { "TOPLEFT", "UIParent", "TOPLEFT", xLeft, -(GetScreenHeight() - yTop) }
     end
 
+    _RefreshForeverTrackerAttachment()
     C_Timer.After(0.12, function()
         QuestieCombatQueue:Queue(function()
             QuestieTracker:Update()
@@ -529,6 +550,7 @@ function TrackerBaseFrame:OnProfileChange()
         baseFrame:ClearAllPoints()
         baseFrame:SetPoint(QuestieTrackerLoc[1], QuestieTrackerLoc[2], QuestieTrackerLoc[3], QuestieTrackerLoc[4], QuestieTrackerLoc[5])
 
+        _RefreshForeverTrackerAttachment()
         C_Timer.After(0.12, function()
             QuestieCombatQueue:Queue(function()
                 QuestieTracker:Update()

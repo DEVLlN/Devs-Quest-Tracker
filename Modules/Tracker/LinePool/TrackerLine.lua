@@ -251,6 +251,9 @@ _OnClickQuest = function(self, button)
         end
     elseif TrackerShortcuts.Matches("trackerbindOpenQuestLog", button) then
         TrackerUtils:ShowQuestLog(self.Quest)
+    elseif TrackerShortcuts.Matches("trackerbindPinQuest", button) then
+        local questId = self.Quest.Id
+        QuestieTracker.SetQuestPinned(questId, not Questie.db.char.PinnedQuests[questId])
     elseif button == "RightButton" then
         local menu = TrackerMenu:GetMenuForQuest(self.Quest)
         QuestieMenuBuilder.Show(menu)

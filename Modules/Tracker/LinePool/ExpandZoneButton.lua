@@ -109,6 +109,9 @@ function ExpandZoneButton.New(index, parent, OnEnter, OnLeave)
                 QuestieCombatQueue:Queue(function()
                     QuestieTracker:Update()
                 end)
+                if Questie.IsForever and Questie.db.profile.trackerCombatCategoryToggles and InCombatLockdown() then
+                    QuestieTracker.TryRedrawCombatCategories()
+                end
             end
         end
     end)

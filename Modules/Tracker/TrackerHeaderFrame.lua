@@ -143,7 +143,7 @@ function TrackerHeaderFrame.Initialize(baseFrame, OnTrackedQuestClick)
         end
         GameTooltip._owner = self
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
-        GameTooltip:AddDoubleLine(Questie:Colorize("DeV's Quest Tracker", "gold"), Questie:Colorize(QuestieLib:GetAddonVersionString(), "gray"))
+        GameTooltip:AddDoubleLine(Questie:Colorize(l10n("Quest Tracker"), "gold"), Questie:Colorize(QuestieLib:GetAddonVersionString(), "gray"))
         GameTooltip:AddLine(" ")
         GameTooltip:AddDoubleLine(Questie:Colorize(l10n("Left Click"), "lightBlue"), Questie:Colorize(l10n("Toggle Options"), "white"))
         GameTooltip:AddDoubleLine(Questie:Colorize(l10n("Right Click"), "lightBlue"), Questie:Colorize(l10n("Toggle My Journey"), "white"))
@@ -306,9 +306,9 @@ function TrackerHeaderFrame:Update()
 
         if expanded then
             local activeQuests = QuestLogCache.GetQuestCount()
-            label:SetText("DeV's Quest Tracker" .. l10n(": ") .. tostring(activeQuests) .. maxQuestAmount)
+            label:SetText(l10n("Quest Tracker") .. " " .. tostring(activeQuests) .. maxQuestAmount)
         else
-            label:SetText("DeV's Quest Tracker" .. (classicTheme and "" or " +"))
+            label:SetText(l10n("Quest Tracker") .. (classicTheme and "" or " +"))
         end
 
         label:ClearAllPoints()

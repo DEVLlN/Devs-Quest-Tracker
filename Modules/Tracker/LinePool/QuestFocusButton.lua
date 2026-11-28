@@ -28,6 +28,7 @@ QuestFocusButton.TEXTURES = {
 ---The quest this button super tracked itself, so it stays focused while following Blizzard is disabled.
 ---@type QuestId?
 local buttonSuperTrackedQuestId
+local buttonFocusedQuestId
 
 ---Super tracked by Blizzard, but only counts when following is enabled or this button selected it.
 ---@param questId QuestId
@@ -51,7 +52,19 @@ local function _IsFocused(questId)
     return Questie.db.char.TrackerFocus == questId or _IsSuperTracked(questId)
 end
 
+---The button's selected quest belongs in the pinned group while it stays focused.
+---@return QuestId?
+function QuestFocusButton.GetAutoPinnedQuestId()
+    if buttonFocusedQuestId and not _IsFocused(buttonFocusedQuestId) then
+        buttonFocusedQuestId = nil
+    end
+    if Questie.db.profile.trackerAutoPinTrackedQuests then
+        return buttonFocusedQuestId
+    end
+end
+
 local function _OnClick(self)
+    local wasFocused = _IsFocused(self.questId)
     if Questie.db.char.TrackerFocus == self.questId then
         TrackerUtils:UnFocus()
         QuestieQuest.ToggleQuestNotes(true)
@@ -75,9 +88,17 @@ local function _OnClick(self)
             end
         end
     end
+    if not wasFocused and _IsFocused(self.questId) then
+        buttonFocusedQuestId = self.questId
+    elseif buttonFocusedQuestId == self.questId then
+        buttonFocusedQuestId = nil
+    end
     QuestieCombatQueue:Queue(function()
         QuestieTracker:Update()
     end)
+    if Questie.IsForever and Questie.db.profile.trackerCombatCategoryToggles and InCombatLockdown() then
+        QuestieTracker.TryRedrawCombatCategories(true)
+    end
 end
 
 local function _OnEnter()

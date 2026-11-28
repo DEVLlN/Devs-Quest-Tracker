@@ -1,4 +1,4 @@
-dofile("setupTests.lua")
+local TestUtils = dofile("setupTests.lua")
 dofile("Modules/Quest/ActiveQuests.lua")
 ---@type ActiveQuests
 local ActiveQuests = QuestieLoader:ImportModule("ActiveQuests")
@@ -338,10 +338,34 @@ describe("QuestieTracker", function()
         end)
 
         describe("quest log pin menus", function()
-            local originalMenu, menus, createButton
+            local originalMenu, originalTrackQuest, menus, createButton, watchHooks, hookMock
+            local originalTimer, pending, indexMock
+
+            local function runPending()
+                for _, callback in ipairs(pending) do
+                    callback()
+                end
+                pending = {}
+            end
 
             before_each(function()
                 originalMenu = _G.Menu
+                originalTrackQuest = _G.QuestMapQuestOptions_TrackQuest
+                _G.QuestMapQuestOptions_TrackQuest = function() end
+                originalTimer = _G.C_Timer
+                pending = {}
+                _G.C_Timer = {After = function(_, callback) table.insert(pending, callback) end}
+                indexMock = stub(QuestieLoader:ImportModule("QuestieCompat"), "GetQuestLogIndexByID", function()
+                    return 2
+                end)
+                watchHooks = {}
+                hookMock = stub(_G, "hooksecurefunc", function(target, name, callback)
+                    if target == _G.C_QuestLog then
+                        watchHooks[name] = callback
+                    elseif target == "QuestMapQuestOptions_TrackQuest" then
+                        watchHooks.TrackQuest = name
+                    end
+                end)
                 menus = {}
                 _G.Menu = {
                     ModifyMenu = function(tag, callback) menus[tag] = callback end,
@@ -358,6 +382,73 @@ describe("QuestieTracker", function()
 
             after_each(function()
                 _G.Menu = originalMenu
+                _G.QuestMapQuestOptions_TrackQuest = originalTrackQuest
+                _G.C_Timer = originalTimer
+                indexMock:revert()
+                hookMock:revert()
+                Questie:UnregisterEvent("QUEST_WATCH_LIST_CHANGED")
+            end)
+
+            it("auto-pins explicit tracking even when Forever reports an automatic watch", function()
+                Questie.db.profile.trackerAutoPinTrackedQuests = true
+                local watchType
+                _G.C_QuestLog.GetQuestWatchType = function() return watchType end
+
+                watchHooks.AddQuestWatch(91741)
+                watchHooks.TrackQuest(91741)
+                assert.is_nil(Questie.db.char.PinnedQuests[91741])
+                watchType = 0
+                runPending()
+                assert.is_true(Questie.db.char.PinnedQuests[91741])
+
+                watchHooks.RemoveQuestWatch(91741)
+                watchHooks.TrackQuest(91741)
+                watchType = nil
+                runPending()
+                assert.is_nil(Questie.db.char.PinnedQuests[91741])
+                assert.is_false(QuestieTracker.IsTrackedByQuestie(91741))
+            end)
+
+            it("leaves the quest unpinned when auto-pin is disabled", function()
+                Questie.db.profile.trackerAutoPinTrackedQuests = false
+                watchHooks.TrackQuest(91741)
+                runPending()
+
+                assert.is_nil(Questie.db.char.PinnedQuests[91741])
+            end)
+
+            it("repins an untracked quest when a new manual watch is reported by the native event", function()
+                Questie.db.profile.trackerAutoPinTrackedQuests = true
+                Questie.db.char.AutoUntrackedQuests[91741] = true
+                local watchType
+                _G.C_QuestLog.GetQuestWatchType = function() return watchType end
+                local manualType = Enum.QuestWatchType and Enum.QuestWatchType.Manual or 1
+
+                TestUtils.triggerMockEvent("QUEST_WATCH_LIST_CHANGED", 91741, true)
+                assert.is_nil(Questie.db.char.PinnedQuests[91741])
+                watchType = manualType
+                runPending()
+                assert.is_true(Questie.db.char.PinnedQuests[91741])
+                assert.is_true(QuestieTracker.IsTrackedByQuestie(91741))
+            end)
+
+            it("clears a pin on a native removal event before the watch type updates", function()
+                Questie.db.char.PinnedQuests[91741] = true
+                local updates = 0
+                QuestieTracker.Update = function() updates = updates + 1 end
+                _G.C_QuestLog.RemoveQuestWatch = function() error("The native watch was already removed") end
+
+                TestUtils.triggerMockEvent("QUEST_WATCH_LIST_CHANGED", 91741, true)
+                assert.is_true(Questie.db.char.PinnedQuests[91741])
+
+                TestUtils.triggerMockEvent("QUEST_WATCH_LIST_CHANGED", 91741, false)
+                assert.is_nil(Questie.db.char.PinnedQuests[91741])
+                assert.is_false(QuestieTracker.IsTrackedByQuestie(91741))
+
+                _G.C_QuestLog.GetQuestWatchType = function() return nil end
+                watchHooks.RemoveQuestWatch(91741)
+                runPending()
+                assert.equal(1, updates)
             end)
 
             it("pins and unpins a tracked quest from the quest row and the details popup", function()
@@ -379,13 +470,8 @@ describe("QuestieTracker", function()
                 Questie.db.profile.autoTrackQuests = false
                 _G.C_QuestLog.GetQuestWatchType = function() return nil end
                 _G.C_QuestLog.AddQuestWatch = spy.new(function() end)
-                local indexMock = stub(QuestieLoader:ImportModule("QuestieCompat"), "GetQuestLogIndexByID", function()
-                    return 2
-                end)
-
                 menus.MENU_QUEST_MAP_LOG_TITLE({questID = 91741}, {CreateButton = createButton})
                 createButton.calls[1].vals[3]()
-                indexMock:revert()
 
                 assert.spy(_G.C_QuestLog.AddQuestWatch).was.called_with(91741)
                 assert.is_true(Questie.db.char.TrackedQuests[91741])
@@ -420,7 +506,7 @@ describe("QuestieTracker", function()
             Questie.db.char.collapsedQuests[91741] = true
             Questie.db.char.collapsedZones["Northshire Abbey"] = true
 
-            QuestieTracker:AQW_Insert(2)
+            QuestieTracker:AQW_Insert(2, nil, false, true)
 
             assert.spy(QuestEventHandler.IsQuestAccepted).was.called_with(91741)
             assert.is_nil(Questie.db.char.AutoUntrackedQuests[91741])
@@ -436,9 +522,23 @@ describe("QuestieTracker", function()
             Questie.db.char.AutoUntrackedQuests[91741] = true
             Questie.db.char.collapsedZones["Quests (By Level)"] = true
 
-            QuestieTracker:AQW_Insert(2)
+            QuestieTracker:AQW_Insert(2, nil, false, true)
 
             assert.is_nil(Questie.db.char.collapsedZones["Quests (By Level)"])
+        end)
+
+        it("keeps a quest untracked when Forever adds a watch in the background", function()
+            Questie.db.profile.trackerAutoPinTrackedQuests = true
+            Questie.db.char.AutoUntrackedQuests[91741] = true
+            _G.C_QuestLog.GetQuestWatchType = function() return 0 end
+
+            QuestieTracker:AQW_Insert(2)
+            _G.C_QuestLog.GetQuestWatchType = function() return 1 end
+            QuestieTracker:AQW_Insert(2, nil, true)
+
+            assert.is_true(Questie.db.char.AutoUntrackedQuests[91741])
+            assert.is_nil(Questie.db.char.PinnedQuests[91741])
+            assert.spy(QuestieTracker.Update).was.not_called()
         end)
 
         it("should keep zones and quests collapsed when migrating native watches on startup", function()
@@ -495,6 +595,34 @@ describe("QuestieTracker", function()
             assert.spy(QuestieTracker.Update).was.called()
         end)
 
+        it("removes a pinned row during combat and defers native untracking", function()
+            local originalInCombat = _G.InCombatLockdown
+            local queued = {}
+            QuestieCombatQueue.Queue = function(_, callback) table.insert(queued, callback) end
+            Questie.db.profile.trackerCombatCategoryToggles = true
+            Questie.db.char.PinnedQuests[91741] = true
+            QuestieTracker.TryRedrawCombatCategories = spy.new(function()
+                assert.is_nil(Questie.db.char.PinnedQuests[91741])
+                assert.is_true(Questie.db.char.AutoUntrackedQuests[91741])
+            end)
+            _G.InCombatLockdown = function() return true end
+
+            QuestieTracker:UntrackQuestId(91741)
+            _G.InCombatLockdown = originalInCombat
+
+            assert.spy(QuestieTracker.TryRedrawCombatCategories).was.called(1)
+            assert.spy(_G.C_QuestLog.RemoveQuestWatch).was.not_called()
+            assert.equal(2, #queued)
+            queued[1]()
+            queued[2]()
+            assert.spy(_G.C_QuestLog.RemoveQuestWatch).was.called_with(91741)
+
+            TrackerData.ContainsQuest = function() return true end
+            Questie.db.char.AutoUntrackedQuests[91741] = nil
+            queued[2]()
+            assert.spy(_G.C_QuestLog.RemoveQuestWatch).was.called(1)
+        end)
+
         it("passes refreshed data to text-only updates", function()
             local pool = QuestieLoader:ImportModule("TrackerLinePool")
             pool.UpdateQuestLines = spy.new(function() end)
@@ -523,9 +651,13 @@ describe("QuestieTracker", function()
     end)
 
     describe("explicit display refresh", function()
-        local now, inCombat, expansion, originalExpansion, originalTimer, originalDurability, originalBindingLabel
+        local now, inCombat, expansion, originalExpansion, originalTimer, originalDurability, originalBindingLabel, originalIsForever
         local timeMock, combatMock, countMock, instanceMock, infoMock, screenMock
-        local header, pool, revision, RecipeSection, ScenarioSection, AchievementSection, QuestSection, drawnSections
+        local header, pool, revision, RecipeSection, ScenarioSection, AchievementSection, QuestSection, drawnSections, questFrame
+
+        local function _UnprotectedFrame()
+            return {IsProtected = function() return false end, IsVisible = function() return true end}
+        end
 
         before_each(function()
             now, inCombat = 0, false
@@ -540,6 +672,7 @@ describe("QuestieTracker", function()
             expansion.Current = expansion.Era
             originalTimer, originalDurability = _G.C_Timer, _G.DurabilityFrame
             originalBindingLabel = _G.BINDING_NAME_QUESTIE_TOGGLE_TRACKER
+            originalIsForever = Questie.IsForever
             _G.C_Timer = {After = function() end}
             _G.DurabilityFrame = {GetPoint = function() return "TOPLEFT" end}
             Questie.db.profile.trackerFontSizeZone = 12
@@ -554,14 +687,20 @@ describe("QuestieTracker", function()
             base.Initialize = function()
                 local baseFrame = CreateFrame("Frame")
                 baseFrame.GetWidth = function() return 200 end
+                baseFrame.IsProtected = function() return false end
                 return baseFrame
             end
             base.Update = function() end
             header = QuestieLoader:ImportModule("TrackerHeaderFrame")
-            header.Initialize = function() return {} end
+            header.Initialize = _UnprotectedFrame
             header.Update = function() assert.spy(TrackerData.Refresh).was.called(1) end
             local frame = QuestieLoader:ImportModule("TrackerQuestFrame")
-            frame.Initialize = function() return {} end
+            frame.Initialize = function()
+                questFrame = _UnprotectedFrame()
+                questFrame.ScrollFrame = _UnprotectedFrame()
+                questFrame.ScrollChildFrame = _UnprotectedFrame()
+                return questFrame
+            end
             frame.Update = function() end
             pool = QuestieLoader:ImportModule("TrackerLinePool")
             pool.Initialize = function() end
@@ -609,6 +748,7 @@ describe("QuestieTracker", function()
             expansion.Current = originalExpansion
             _G.C_Timer, _G.DurabilityFrame = originalTimer, originalDurability
             _G.BINDING_NAME_QUESTIE_TOGGLE_TRACKER = originalBindingLabel
+            Questie.IsForever = originalIsForever
         end)
 
         it("should draw quests and recipes outside scenarios before WotLK", function()
@@ -712,6 +852,56 @@ describe("QuestieTracker", function()
             assert.spy(TrackerData.Refresh).was.not_called()
             assert.spy(TrackerData.RefreshQuest).was.called_with(91741)
             assert.spy(pool.UpdateQuestLines).was.called_with(91741, quest)
+        end)
+
+        it("redraws combat categories only when opted in and all layout changes are safe", function()
+            local startup
+            _G.C_Timer.After = function(delay, callback)
+                if delay == 1.0 then
+                    startup = callback
+                end
+            end
+            Questie.IsForever = true
+            Questie.db.profile.trackerCombatCategoryToggles = true
+            local ids, details, pins = {1}, {[1] = {}}, {2}
+            TrackerUtils.GetSortedQuestIds = function() return ids, details, pins end
+            pool.CanRedrawInCombat = function() return true end
+            now = 1
+            QuestieTracker:Update()
+            startup()
+            QuestieTracker.UpdateFormatting = spy.new(function() end)
+            QuestSection.Draw:clear()
+            pool.ResetButtonsForChange = spy.new(function() end)
+            pool.ResetLinesForChange = spy.new(function() end)
+            inCombat = true
+
+            assert.is_true(QuestieTracker.TryRedrawCombatCategories())
+            assert.spy(QuestSection.Draw).was.called_with(pins, details, "pinned")
+            assert.spy(QuestSection.Draw).was.called_with(ids, details)
+            assert.spy(QuestieTracker.UpdateFormatting).was.called_with(QuestieTracker, true)
+            assert.spy(pool.ResetLinesForChange).was.called_with(true)
+            assert.spy(pool.ResetButtonsForChange).was.not_called()
+            assert.spy(TrackerData.Refresh).was.called(1)
+
+            assert.is_false(QuestieTracker.TryRedrawCombatCategories(true, true))
+            local completedIds, updatedDetails = {1}, {[1] = {readyToTurnIn = true}, [2] = {}}
+            TrackerUtils.GetSortedQuestIds = function() return {}, updatedDetails, pins, completedIds end
+            revision = revision + 1
+            assert.is_true(QuestieTracker.TryRedrawCombatCategories(true, true))
+            assert.are.same({pins, updatedDetails, "pinned"}, QuestSection.Draw.calls[3].vals)
+            assert.are.same({completedIds, updatedDetails, "completed"}, QuestSection.Draw.calls[4].vals)
+            assert.spy(pool.ResetButtonsForChange).was.not_called()
+            assert.is_false(QuestieTracker.TryRedrawCombatCategories(true, true))
+
+            questFrame.ScrollChildFrame.IsProtected = function() return true end
+            assert.is_false(QuestieTracker.TryRedrawCombatCategories())
+            questFrame.ScrollChildFrame.IsProtected = function() return false end
+            pool.CanRedrawInCombat = function() return false end
+            assert.is_false(QuestieTracker.TryRedrawCombatCategories())
+            pool.CanRedrawInCombat = function() return true end
+            Questie.db.profile.trackerCombatCategoryToggles = false
+            assert.is_false(QuestieTracker.TryRedrawCombatCategories())
+            assert.spy(QuestSection.Draw).was.called(5)
         end)
 
         describe("quest-log checks", function()

@@ -101,6 +101,7 @@ describe("TrackerLinePool", function()
         local function _Line()
             local line = _Hoverable({alpha = 1})
             function line:SetAlpha(alpha) self.alpha = alpha end
+            function line:IsProtected() return self.protected == true end
             line.questFocus = _Hoverable({})
             line.playButton = _Hoverable({})
             line.expandQuest = _Hoverable({})
@@ -125,8 +126,10 @@ describe("TrackerLinePool", function()
                 return line
             end
             TrackerItemButton.New = function()
-                local button = _Hoverable({Hide = function() end})
+                local button = _Hoverable({Hide = function() end, parent = UIParent})
                 function button:GetParent() return self.parent end
+                function button:GetNumPoints() return self.anchorCount or 0 end
+                function button:IsShown() return self.shown == true end
                 return button
             end
             _G.C_QuestLog = {GetMaxNumQuestsCanAccept = function() return 1 end}
@@ -140,6 +143,50 @@ describe("TrackerLinePool", function()
             for _ = 1, 3 do
                 TrackerLinePool.GetNextLine()
             end
+        end)
+
+        it("permits combat redraw only while item buttons are detached and rows are unprotected", function()
+            assert.is_true(TrackerLinePool.CanRedrawInCombat())
+
+            local button = TrackerLinePool.GetNextItemButton()
+            button.parent = lines[1]
+            assert.is_false(TrackerLinePool.CanRedrawInCombat())
+
+            button.parent = UIParent
+            button.anchorCount = 1
+            assert.is_false(TrackerLinePool.CanRedrawInCombat())
+
+            button.anchorCount = 0
+            button.shown = true
+            assert.is_false(TrackerLinePool.CanRedrawInCombat())
+
+            button.shown = false
+            lines[1].protected = true
+            assert.is_false(TrackerLinePool.CanRedrawInCombat())
+        end)
+
+        it("dims the inline item icon only during combat", function()
+            local icon = {}
+            function icon:SetTexture(texture) self.texture = texture end
+            function icon:GetTexture() return self.texture end
+            function icon:SetAlpha(alpha) self.alpha = alpha end
+            function icon:SetShown(shown) self.shown = shown end
+            function icon:ClearAllPoints() end
+            function icon:SetPoint() end
+            function icon:SetSize() end
+            local line = lines[1]
+            function line:CreateTexture() return icon end
+
+            TrackerLinePool.AddCombatItemIcon(line, 1, 123, 16, 0)
+            assert.is_false(icon.shown)
+
+            TrackerLinePool.SetCombatItemIconsShown(true)
+            assert.equal(123, icon.texture)
+            assert.equal(0.35, icon.alpha)
+            assert.is_true(icon.shown)
+
+            TrackerLinePool.SetCombatItemIconsShown(false)
+            assert.is_false(icon.shown)
         end)
 
         after_each(function()

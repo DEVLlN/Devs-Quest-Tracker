@@ -17,7 +17,10 @@ The fork stores its own settings. New installations start with the addon's defau
 - Quest titles and objectives wrap. The auto-width slider goes down to 5%.
 - Quest focus buttons scale independently up to 200%. Quest item buttons appear on the right.
 - The optional Classic header fills the tracker width and scales with the font, including the settings and minimize buttons. The question mark can be hidden or faded until hover.
-- The tracker can open the current zone and collapse other zone groups. Pinned quests have a group at the top. An option pins quests when manually tracked and removes the pin when untracked. Right-click an active quest in the map quest log to pin it directly.
+- The tracker can open the current zone and collapse other zone groups. Pinned quests stay at the top, with completed quests grouped below when **Group Completed Quests** is enabled.
+- Ctrl-right-click a quest in the tracker to pin or unpin it. The shortcut is configurable under Tracker. If automatic pinning is enabled, focusing a quest also puts it in the pinned group until you clear focus. A manual pin survives that change.
+- **Combat Category Toggles (Beta)** allows the tracker to refresh quest rows and expand or collapse groups during combat when possible. Quest-item buttons dim until combat ends.
+- Shortest Path Forever's attached tracker follows the quest tracker when it moves or resizes.
 
 ## Build from source
 

@@ -112,6 +112,24 @@ describe("native tracker options", function()
         assert.is_true(Questie.db.profile.trackerFollowSuperTracking)
     end)
 
+    it("should switch the combat category beta on and off on Forever", function()
+        Questie.IsForever = true
+        Questie.db.profile.trackerCombatCategoryToggles = false
+        local toggle = LoadTab().group_quests.items.group_objectives.items.combatCategoryToggles
+
+        assert.is_true(toggle.visible)
+        assert.is_false(toggle.get())
+        toggle.set(nil, true)
+        assert.is_true(toggle.get())
+        toggle.set(nil, false)
+        assert.is_false(toggle.get())
+        assert.spy(tracker.Update).was.called(2)
+
+        Questie.IsForever = false
+        toggle = LoadTab().group_quests.items.group_objectives.items.combatCategoryToggles
+        assert.is_false(toggle.visible)
+    end)
+
     it("should keep the follow super tracking option enabled while the tracker is disabled", function()
         Questie.db.profile.trackerEnabled = false
 
@@ -162,12 +180,22 @@ describe("native tracker options", function()
         assert.are_same("altleft", Questie.db.profile.trackerbindShareQuest)
     end)
 
+    it("refreshes the tracker when grouping completed quests changes", function()
+        local option = LoadTab().group_quests.items.groupCompletedQuests
+
+        option.set(nil, true)
+
+        assert.is_true(option.get())
+        assert.spy(tracker.Update).was.called_with(tracker)
+    end)
+
     it("disables the other action when a shortcut dropdown takes its click", function()
         local shortcutDropdowns = {
             openQuestLog = "trackerbindOpenQuestLog",
             untrackQuest = "trackerbindUntrack",
             shareQuest = "trackerbindShareQuest",
             setTomTom = "trackerbindSetTomTom",
+            pinQuest = "trackerbindPinQuest",
         }
         local items = LoadTab().group_quests.items.group_shortcuts.items
 

@@ -309,8 +309,19 @@ Questie.ICON_TYPE_NODE_ORE = 22
 Questie.ICON_TYPE_CHEST = 23
 Questie.ICON_TYPE_PET_BATTLE = 24
 
--- Load icon pathes from SavedVariables or set the default ones
+local legacyIconPath = "interface\\addons\\questie\\icons\\"
+
+-- Load saved icon choices, migrating textures from the original addon folder.
 function Questie.SetIcons()
+    local profile = Questie.db.profile
+    for key, path in pairs(profile) do
+        if type(key) == "string" and (key:sub(1, 5) == "ICON_" or key == "MOUNT_UP")
+            and type(path) == "string"
+            and path:sub(1, #legacyIconPath):lower() == legacyIconPath then
+            profile[key] = "Interface\\Addons\\DevsQuestTracker\\Icons\\" .. path:sub(#legacyIconPath + 1)
+        end
+    end
+
     Questie.usedIcons[Questie.ICON_TYPE_SLAY] = Questie.db.profile.ICON_SLAY or Questie.icons["slay"]
     Questie.usedIcons[Questie.ICON_TYPE_LOOT] = Questie.db.profile.ICON_LOOT or Questie.icons["loot"]
     Questie.usedIcons[Questie.ICON_TYPE_EVENT] = Questie.db.profile.ICON_EVENT or Questie.icons["event"]

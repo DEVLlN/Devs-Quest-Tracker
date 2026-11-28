@@ -1267,6 +1267,25 @@ describe("QuestEventHandler", function()
             queued[2]()
             assert.spy(QuestieTracker.Update).was.called_with(QuestieTracker, true)
         end)
+
+        it("requests a combat redraw for a quest log update while the beta is on", function()
+            local originalForever, originalCombat = Questie.IsForever, _G.InCombatLockdown
+            local originalBeta = Questie.db.profile.trackerCombatCategoryToggles
+            local originalRedraw = QuestieTracker.TryRedrawCombatCategories
+            local redraw = spy.new(function() end)
+            Questie.IsForever = true
+            Questie.db.profile.trackerCombatCategoryToggles = true
+            _G.InCombatLockdown = function() return true end
+            QuestieTracker.TryRedrawCombatCategories = redraw
+            QuestLogCache.CheckForChanges = function() return false, {} end
+
+            QuestEventHandler.QuestLogUpdate()
+
+            Questie.IsForever, _G.InCombatLockdown = originalForever, originalCombat
+            Questie.db.profile.trackerCombatCategoryToggles = originalBeta
+            QuestieTracker.TryRedrawCombatCategories = originalRedraw
+            assert.spy(redraw).was.called_with(true, true)
+        end)
     end)
 
     describe("CRITERIA_UPDATE", function()

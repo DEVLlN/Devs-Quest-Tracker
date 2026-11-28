@@ -85,17 +85,19 @@ local trackerUpdateForced = false
 ---@param onlyIfChanged boolean? See QuestieTracker:Update. A forced request sharing the queued update keeps it forced.
 local function _QueueTrackerUpdate(onlyIfChanged)
     trackerUpdateForced = trackerUpdateForced or not onlyIfChanged
-    if trackerUpdateQueued then
-        return
+    if not trackerUpdateQueued then
+        trackerUpdateQueued = true
+        QuestieCombatQueue:Queue(function()
+            local forced = trackerUpdateForced
+            -- Clear first so events during the update can queue the next one.
+            trackerUpdateQueued = false
+            trackerUpdateForced = false
+            QuestieTracker:Update(not forced)
+        end)
     end
-    trackerUpdateQueued = true
-    QuestieCombatQueue:Queue(function()
-        local forced = trackerUpdateForced
-        -- Clear first so events during the update can queue the next one.
-        trackerUpdateQueued = false
-        trackerUpdateForced = false
-        QuestieTracker:Update(not forced)
-    end)
+    if Questie.IsForever and Questie.db.profile.trackerCombatCategoryToggles and InCombatLockdown() then
+        QuestieTracker.TryRedrawCombatCategories(true, onlyIfChanged)
+    end
 end
 
 -- One fallback for the whole quest log, not one timer per quest. Repeated requests keep the existing deadline.

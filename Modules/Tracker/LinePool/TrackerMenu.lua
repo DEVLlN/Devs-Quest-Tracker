@@ -339,10 +339,18 @@ TrackerMenu.addAbandonedQuest = function(menu, quest)
 end
 
 TrackerMenu.addUntrackOption = function(menu, quest)
+    local questId = quest.Id
     tinsert(menu, {
         text = l10n('Untrack Quest'),
         func = function()
-            QuestieTracker:UntrackQuestId(quest.Id)
+            if Questie.IsForever then
+                -- Let Blizzard finish closing the menu before redrawing the tracker rows it was opened from.
+                C_Timer.After(0, function()
+                    QuestieTracker:UntrackQuestId(questId)
+                end)
+                return
+            end
+            QuestieTracker:UntrackQuestId(questId)
             local questLogFrame = QuestLogExFrame or ClassicQuestLog or QuestLogFrame
 
             if questLogFrame and questLogFrame:IsShown() then

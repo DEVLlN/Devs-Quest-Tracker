@@ -30,11 +30,12 @@ end
 
 local linePoolSize = 250
 local lineIndex = 0
-local buttonPoolSize = 25
 local buttonIndex = 0
 ---@type table<number, TrackerLineFrame>
 local linePool = {}
 local buttonPool = {}
+local itemButtonRoot, trackerScrollFrame
+local detachedLayoutDirty = false
 
 ---@type table<QuestId, table<TrackerLineFrame>>
 local linesByQuest = {}
@@ -45,6 +46,7 @@ local linesByScenarioIndex = {}
 ---@param questFrame Frame
 function TrackerLinePool.Initialize(questFrame)
     local trackerQuestFrame = questFrame
+    trackerScrollFrame = questFrame.ScrollFrame
 
     -- create linePool for quests/achievements
     local previousLine
@@ -70,21 +72,107 @@ function TrackerLinePool.Initialize(questFrame)
     end
 end
 
-function TrackerLinePool.ResetLinesForChange()
+-- The secure buttons follow their rows in screen coordinates. Parenting or
+-- anchoring them to the tracker would protect the whole layout during combat.
+local function _SyncDetachedItemButtons()
+    if InCombatLockdown() then
+        return
+    end
+
+    for i = 1, math.min(buttonIndex, #buttonPool) do
+        local button = buttonPool[i]
+        if button.detachedLine then
+            TrackerItemButton.SyncDetachedPosition(button, trackerScrollFrame, detachedLayoutDirty)
+        end
+    end
+end
+
+function TrackerLinePool.PlaceDetachedItemButton(button, line, xOffset)
+    if not itemButtonRoot then
+        itemButtonRoot = CreateFrame("Frame", nil, UIParent, "SecureHandlerStateTemplate")
+        itemButtonRoot:SetScript("OnShow", _SyncDetachedItemButtons)
+        itemButtonRoot:SetScript("OnUpdate", _SyncDetachedItemButtons)
+        _G.RegisterStateDriver(itemButtonRoot, "visibility", "[combat] hide; show")
+    end
+
+    if button:GetParent() ~= itemButtonRoot then
+        button:ClearAllPoints()
+        button:SetParent(itemButtonRoot)
+    end
+    button:SetFrameStrata(line:GetFrameStrata())
+    button:SetFrameLevel(line:GetFrameLevel() + 1)
+    button.detachedLine, button.detachedOffset = line, xOffset
+    TrackerItemButton.SyncDetachedPosition(button, trackerScrollFrame, detachedLayoutDirty)
+end
+
+function TrackerLinePool.AddCombatItemIcon(line, index, texture, size, xOffset)
+    local icons = line.combatItemIcons or {}
+    line.combatItemIcons = icons
+    local icon = icons[index]
+    if not icon then
+        icon = line:CreateTexture(nil, "ARTWORK")
+        icon:SetAlpha(0.35)
+        icons[index] = icon
+    end
+    icon:SetTexture(texture)
+    icon:SetSize(size, size)
+    icon:ClearAllPoints()
+    icon:SetPoint("TOPRIGHT", line, "TOPRIGHT", xOffset, 1)
+    icon:SetShown(InCombatLockdown())
+end
+
+function TrackerLinePool.SetCombatItemIconsShown(shown)
+    for i = 1, TrackerLinePool.GetHighestIndex() do
+        local icons = linePool[i].combatItemIcons
+        if icons then
+            for _, icon in ipairs(icons) do
+                icon:SetShown(shown and icon:GetTexture() ~= nil)
+            end
+        end
+    end
+end
+
+---A pooled item button can protect its parent and anchor chain even while hidden.
+function TrackerLinePool.CanRedrawInCombat()
+    for _, button in pairs(buttonPool) do
+        local parent = button:GetParent()
+        if not (itemButtonRoot and parent == itemButtonRoot)
+            and (button:IsShown() or parent ~= UIParent or button:GetNumPoints() > 0) then
+            return false
+        end
+    end
+    for _, line in pairs(linePool) do
+        if line:IsProtected() then
+            return false
+        end
+    end
+    return true
+end
+
+function TrackerLinePool.ResetLinesForChange(combatCategoryRedraw)
     if TrackerBaseFrame.isSizing == true or TrackerBaseFrame.isMoving == true then
         Questie.Debug(Questie.DEBUG_SPAM, "[TrackerLinePool:ResetLinesForChange]")
     else
         Questie.Debug(Questie.DEBUG_INFO, "[TrackerLinePool:ResetLinesForChange]")
     end
 
-    if InCombatLockdown() or not Questie.db.profile.trackerEnabled then
+    if (InCombatLockdown() and not combatCategoryRedraw) or not Questie.db.profile.trackerEnabled then
         return
     end
 
     TrackerQuestTooltip.Hide()
+    if combatCategoryRedraw then
+        detachedLayoutDirty = true
+    end
     linesByQuest = {} -- Reset to keep correct questId <-> line mapping
 
     for _, line in pairs(linePool) do
+        if line.combatItemIcons then
+            for _, icon in ipairs(line.combatItemIcons) do
+                icon:SetTexture(nil)
+                icon:Hide()
+            end
+        end
         line.mode = nil
         line.Recipe = nil
         line.trackTimedQuest = nil
@@ -128,6 +216,13 @@ function TrackerLinePool.ResetButtonsForChange()
     end
 
     buttonIndex = 0
+    for _, button in ipairs(buttonPool) do
+        if button.detachedLine then
+            button:Hide()
+            TrackerItemButton.ClearDetachedPosition(button)
+        end
+    end
+    detachedLayoutDirty = false
 end
 
 ---@param callback function
@@ -265,13 +360,16 @@ function TrackerLinePool.HideUnusedButtons()
         startUnusedButtons = buttonIndex + 1
     end
 
-    for i = startUnusedButtons, buttonPoolSize do
+    for i = math.max(startUnusedButtons, 1), #buttonPool do
         local button = buttonPool[i]
         if button then
             button:FakeHide()
             button.itemId = nil
             button.lineID = nil
             button.fontSize = nil
+            if button.detachedLine then
+                TrackerItemButton.ClearDetachedPosition(button)
+            end
             button:ClearAllPoints()
             button:SetParent(UIParent)
             button:Hide()
@@ -302,6 +400,7 @@ end
 
 ---@param alpha number
 function TrackerLinePool.SetAllItemButtonAlpha(alpha)
+    local inCombat = InCombatLockdown()
     for i = 1, buttonIndex do
         local button = buttonPool[i]
         if (not button) then
@@ -309,7 +408,9 @@ function TrackerLinePool.SetAllItemButtonAlpha(alpha)
             break
         end
 
-        button:SetAlpha(alpha)
+        if not (inCombat and button.detachedLine) then
+            button:SetAlpha(alpha)
+        end
     end
 end
 
@@ -347,9 +448,9 @@ local function _IsButtonHovered(line)
         end
     end
     -- Quest item buttons are taller than a line, so they reach into the next line
-    for i = 1, math.min(buttonIndex, buttonPoolSize) do
+    for i = 1, math.min(buttonIndex, #buttonPool) do
         local button = buttonPool[i]
-        if button and button:GetParent() == line and button:IsVisible() and button:IsMouseOver() then
+        if button and (button.detachedLine or button:GetParent()) == line and button:IsVisible() and button:IsMouseOver() then
             return true
         end
     end

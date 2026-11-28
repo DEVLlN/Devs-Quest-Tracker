@@ -183,6 +183,19 @@ function QuestieOptionsEngine.tabs.tracker:Initialize()
                             Questie.db.profile.trackerAutoPinTrackedQuests = value
                         end,
                     },
+                    groupCompletedQuests = {
+                        type = "checkbox",
+                        order = 1.2,
+                        title = "Group Completed Quests",
+                        tooltip = "Groups completed tracked quests below Pinned Quests.",
+                        width = "half",
+                        enabled = function() return Questie.db.profile.trackerEnabled end,
+                        get = function() return Questie.db.profile.trackerGroupCompletedQuests end,
+                        set = function(_, value)
+                            Questie.db.profile.trackerGroupCompletedQuests = value
+                            QuestieTracker:Update()
+                        end,
+                    },
                     showQuestLevels = {
                         type = "checkbox",
                         order = 2,
@@ -304,6 +317,18 @@ function QuestieOptionsEngine.tabs.tracker:Initialize()
                                 get = function() return Questie.db.profile.trackerbindSetTomTom end,
                                 set = function(key)
                                     TrackerShortcuts.Set("trackerbindSetTomTom", key)
+                                end,
+                            },
+                            pinQuest = {
+                                type = "dropdown",
+                                order = 6.7,
+                                title = "Pin Quest to Top",
+                                width = "third",
+                                options = _GetShortcuts,
+                                enabled = function() return Questie.db.profile.trackerEnabled end,
+                                get = function() return Questie.db.profile.trackerbindPinQuest end,
+                                set = function(key)
+                                    TrackerShortcuts.Set("trackerbindPinQuest", key)
                                 end,
                             },
                         },
@@ -430,6 +455,20 @@ function QuestieOptionsEngine.tabs.tracker:Initialize()
                                 set = function(_, value)
                                     Questie.db.profile.trackerAutoOpenCurrentZone = value
                                     QuestieCombatQueue:Queue(function() QuestieTracker:Update() end)
+                                end,
+                            },
+                            combatCategoryToggles = {
+                                type = "checkbox",
+                                order = 9,
+                                title = "Combat Category Toggles (Beta)",
+                                tooltip = "Expand or collapse tracker categories during combat when possible. The tracker's quest-item buttons dim and cannot be clicked until combat ends.",
+                                width = "half",
+                                visible = Questie.IsForever == true,
+                                enabled = function() return Questie.db.profile.trackerEnabled and not InCombatLockdown() end,
+                                get = function() return Questie.db.profile.trackerCombatCategoryToggles end,
+                                set = function(_, value)
+                                    Questie.db.profile.trackerCombatCategoryToggles = value
+                                    QuestieTracker:Update()
                                 end,
                             },
                         },

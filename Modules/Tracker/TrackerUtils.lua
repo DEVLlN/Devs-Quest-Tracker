@@ -16,6 +16,10 @@ local Sorter = QuestieLoader:ImportModule("Sorter")
 local QuestAcceptOrder = QuestieLoader:ImportModule("QuestAcceptOrder")
 ---@type TrackerLinePool
 local TrackerLinePool = QuestieLoader:ImportModule("TrackerLinePool")
+---@type QuestFocusButton
+local QuestFocusButton = QuestieLoader:ImportModule("QuestFocusButton")
+---@type TrackerItemButton
+local TrackerItemButton = QuestieLoader:ImportModule("TrackerItemButton")
 ---@type TrackerLayout
 local TrackerLayout = QuestieLoader:ImportModule("TrackerLayout")
 ---@type AchievementTracking
@@ -808,6 +812,7 @@ end
 ---@return table sortedQuestIds Table with sorted Quest ID's by Sort Type
 ---@return table questDetails Display records, completion fractions and grouping labels.
 ---@return QuestId[] pinnedQuestIds Pinned quests in the selected sort order.
+---@return QuestId[] completedQuestIds Ready-to-turn-in quests in the selected sort order.
 function TrackerUtils:GetSortedQuestIds()
     TrackerUtils.RefreshAutoQuestZone()
     ---@type QuestId[]
@@ -822,8 +827,9 @@ function TrackerUtils:GetSortedQuestIds()
         if quest then
             tinsert(sortedQuestIds, questId)
 
+            local completionState = quest:IsComplete()
             local percent = 0
-            if quest:IsComplete() == 1 or quest.isComplete then
+            if completionState == 1 or quest.isComplete then
                 percent = 1
             elseif #quest.Objectives > 0 then
                 for _, objective in ipairs(quest.Objectives) do
@@ -840,6 +846,7 @@ function TrackerUtils:GetSortedQuestIds()
                 quest = quest,
                 zoneName = TrackerUtils.GetQuestGroupName(quest),
                 questCompletePercent = percent,
+                readyToTurnIn = completionState == 1 or (completionState ~= -1 and quest.isComplete == true),
                 acceptOrder = acceptOrder and acceptOrder[questId] or 0,
             }
         end
@@ -1157,17 +1164,25 @@ function TrackerUtils:GetSortedQuestIds()
     end
 
     local pinnedQuestIds = {}
+    local completedQuestIds = {}
     local pins = Questie.db.char.PinnedQuests
-    if next(pins) then
+    local focusedPin = QuestFocusButton.GetAutoPinnedQuestId()
+    local groupCompleted = Questie.db.profile.trackerGroupCompletedQuests
+    if focusedPin or groupCompleted or next(pins) then
         local groupedQuestIds = {}
         for _, questId in ipairs(sortedQuestIds) do
-            local ids = pins[questId] and pinnedQuestIds or groupedQuestIds
-            ids[#ids + 1] = questId
+            if questId == focusedPin or pins[questId] then
+                pinnedQuestIds[#pinnedQuestIds + 1] = questId
+            elseif groupCompleted and questDetails[questId].readyToTurnIn and QuestieTracker.IsTrackedByQuestie(questId) then
+                completedQuestIds[#completedQuestIds + 1] = questId
+            else
+                groupedQuestIds[#groupedQuestIds + 1] = questId
+            end
         end
         sortedQuestIds = groupedQuestIds
     end
 
-    return sortedQuestIds, questDetails, pinnedQuestIds
+    return sortedQuestIds, questDetails, pinnedQuestIds, completedQuestIds
 end
 
 -- Spoken disables AI_VoiceOver and takes over the VoiceOver global when both are installed
@@ -1277,7 +1292,9 @@ end
 ---@return boolean shouldContinue, number rightInset
 function TrackerUtils.AddQuestItemButtons(quest, complete, line, isMinimizable, showSecondary)
     line.expandQuest:SetShown(not (Questie.db.profile.collapseCompletedQuests and isMinimizable))
-    if Questie.db.char.collapsedQuests[quest.Id] then
+    local inCombat = InCombatLockdown()
+    local combatToggles = Questie.IsForever and Questie.db.profile.trackerCombatCategoryToggles
+    if (inCombat and not combatToggles) or Questie.db.char.collapsedQuests[quest.Id] then
         return true, 0
     end
 
@@ -1287,21 +1304,34 @@ function TrackerUtils.AddQuestItemButtons(quest, complete, line, isMinimizable, 
     local numButtons = 0
     local shouldContinue = true
     for index = 1, math.min(#usableQuestItems, showSecondary and 2 or 1) do
-        local button = TrackerLinePool.GetNextItemButton()
-        if not button then
-            shouldContinue = false
-            break
-        end
-
         local itemId = usableQuestItems[index]
-        if not button:SetItem(itemId, quest.Id, itemSize, itemId == nativeItemId) then
-            break
+        local xOffset = -numButtons * (itemSize + gap)
+        if not inCombat then
+            local button = TrackerLinePool.GetNextItemButton()
+            if not button then
+                shouldContinue = false
+                break
+            end
+            if not button:SetItem(itemId, quest.Id, itemSize, itemId == nativeItemId) then
+                break
+            end
+            if combatToggles then
+                TrackerLinePool.PlaceDetachedItemButton(button, line, xOffset)
+            else
+                if button.detachedLine then
+                    TrackerItemButton.ClearDetachedPosition(button)
+                end
+                button:ClearAllPoints()
+                button:SetPoint("TOPRIGHT", line, "TOPRIGHT", xOffset, 1)
+                button:SetParent(line)
+                button:Show()
+            end
         end
 
-        button:ClearAllPoints()
-        button:SetPoint("TOPRIGHT", line, "TOPRIGHT", -numButtons * (itemSize + gap), 1)
-        button:SetParent(line)
-        button:Show()
+        if combatToggles then
+            local texture = QuestieCompat.GetItemIcon(itemId) or "Interface\\Icons\\INV_Misc_QuestionMark"
+            TrackerLinePool.AddCombatItemIcon(line, index, texture, itemSize, xOffset)
+        end
         numButtons = numButtons + 1
     end
 

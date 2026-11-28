@@ -105,6 +105,15 @@ describe("TrackerShortcuts", function()
     end)
 
     describe("Set", function()
+        it("can move a click from the pin shortcut to another action", function()
+            Questie.db.profile.trackerbindPinQuest = "ctrlright"
+
+            TrackerShortcuts.Set("trackerbindUntrack", "ctrlright")
+
+            assert.are_same("disabled", Questie.db.profile.trackerbindPinQuest)
+            assert.are_same("ctrlright", Questie.db.profile.trackerbindUntrack)
+        end)
+
         it("disables the action that had the click before, and only that one", function()
             TrackerShortcuts.Set("trackerbindUntrack", "ctrlleft")
 

@@ -25,6 +25,7 @@ describe("QuestFocusButton", function()
         Questie.db.profile.trackerShowQuestFocusButtons = true
         Questie.db.profile.trackerFontSizeQuest = 12
         Questie.db.profile.trackerFollowSuperTracking = true
+        Questie.db.profile.trackerAutoPinTrackedQuests = false
         Questie.db.char.TrackerFocus = nil
 
         canFocusQuest = true
@@ -206,6 +207,45 @@ describe("QuestFocusButton", function()
     describe("OnClick", function()
         after_each(function()
             _G.WorldMapFrame = nil
+        end)
+
+        it("pins the quest while the yellow focus button is selected", function()
+            Questie.db.profile.trackerAutoPinTrackedQuests = true
+            TrackerUtils.FocusQuest = function(_, id)
+                Questie.db.char.TrackerFocus = id
+                return true
+            end
+            TrackerUtils.UnFocus = function() Questie.db.char.TrackerFocus = nil end
+            local button = QuestFocusButton.New(1, CreateFrame("Button"))
+            button:SetQuest(quest, false)
+
+            button.scripts.OnClick(button)
+            assert.are.equal(123, QuestFocusButton.GetAutoPinnedQuestId())
+            button:SetQuest(quest, false)
+            assert.are.equal(QuestFocusButton.TEXTURES.incompleteFocused, button:GetNormalTexture():GetTexture())
+
+            button.scripts.OnClick(button)
+            assert.is_nil(QuestFocusButton.GetAutoPinnedQuestId())
+        end)
+
+        it("refreshes the combat layout after changing the focused pin with the beta on", function()
+            local originalForever, originalCombat = Questie.IsForever, _G.InCombatLockdown
+            local originalBeta = Questie.db.profile.trackerCombatCategoryToggles
+            local originalRedraw = QuestieTracker.TryRedrawCombatCategories
+            local redraw = spy.new(function() end)
+            Questie.IsForever = true
+            Questie.db.profile.trackerCombatCategoryToggles = true
+            _G.InCombatLockdown = function() return true end
+            QuestieTracker.TryRedrawCombatCategories = redraw
+
+            local button = QuestFocusButton.New(1, CreateFrame("Button"))
+            button:SetQuest(quest, false)
+            button.scripts.OnClick(button)
+
+            Questie.IsForever, _G.InCombatLockdown = originalForever, originalCombat
+            Questie.db.profile.trackerCombatCategoryToggles = originalBeta
+            QuestieTracker.TryRedrawCombatCategories = originalRedraw
+            assert.spy(redraw).was.called_with(true)
         end)
 
         it("should not show the quest on the map when focusing fails while the world map is open", function()

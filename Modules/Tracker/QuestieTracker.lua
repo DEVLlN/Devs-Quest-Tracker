@@ -732,6 +732,9 @@ function QuestieTracker.OnHideInInstancesChanged(enabled)
 end
 
 function QuestieTracker.HandleCombatStarted()
+    if Questie.IsForever and Questie.db.profile.trackerCombatCategoryToggles then
+        TrackerLinePool.SetCombatItemIconsShown(true)
+    end
     if Questie.db.profile.minimizeTrackerInCombat and Questie.db.char.isTrackerExpanded and (not minimizedByCombat) then
         minimizedByCombat = true
         QuestieTracker:Collapse()
@@ -746,6 +749,9 @@ function QuestieTracker.HandleCombatStarted()
 end
 
 function QuestieTracker.HandleCombatEnded()
+    if Questie.IsForever and Questie.db.profile.trackerCombatCategoryToggles then
+        TrackerLinePool.SetCombatItemIconsShown(false)
+    end
     if Questie.db.profile.minimizeTrackerInCombat and minimizedByCombat then
         if Questie.db.profile.minimizeTrackerInInstances and IsInInstance() then
             -- Still minimized due to the instance; transfer ownership instead of leaving minimizedByCombat stuck.
@@ -838,6 +844,68 @@ end
 
 -- TrackerData revision shown by the last completed layout. Nil makes the next quest-log check lay out.
 local layoutRevision
+local combatCategoryLayout
+
+local function _DrawQuestSections(sortedQuestIds, questDetails, pinnedQuestIds, completedQuestIds)
+    if pinnedQuestIds and #pinnedQuestIds > 0 then
+        QuestSection.Draw(pinnedQuestIds, questDetails, "pinned")
+    end
+    if completedQuestIds and #completedQuestIds > 0 then
+        QuestSection.Draw(completedQuestIds, questDetails, "completed")
+    end
+
+    local showAchievements = Expansions.Current >= Expansions.Wotlk
+    if Questie.db.profile.listAchievementsFirst and showAchievements then
+        AchievementSection.Draw()
+        QuestSection.Draw(sortedQuestIds, questDetails)
+    else
+        QuestSection.Draw(sortedQuestIds, questDetails)
+        if showAchievements then
+            AchievementSection.Draw()
+        end
+    end
+    RecipeSection.Draw()
+end
+
+---Redraw the unprotected quest list while the secure item buttons are hidden.
+---@param refreshQuestData boolean? Refresh and sort the quest log before redrawing.
+---@param onlyIfChanged boolean? Skip a quest-log refresh when its layout data is unchanged.
+function QuestieTracker.TryRedrawCombatCategories(refreshQuestData, onlyIfChanged)
+    local profile = Questie.db.profile
+    local layout = combatCategoryLayout
+    if not (Questie.IsForever and profile.trackerCombatCategoryToggles and InCombatLockdown() and layout
+        and layout.profile == profile and QuestieTracker.started and allowFormattingUpdate and profile.trackerEnabled
+        and Questie.db.char.isTrackerExpanded and trackerQuestFrame:IsVisible())
+        or TrackerBaseFrame.isMoving or TrackerBaseFrame.isSizing or QuestieTracker.disableHooks then
+        return false
+    end
+    if trackerBaseFrame:IsProtected() or trackerHeaderFrame:IsProtected() or trackerQuestFrame:IsProtected()
+        or trackerQuestFrame.ScrollFrame:IsProtected()
+        or trackerQuestFrame.ScrollChildFrame:IsProtected() or not TrackerLinePool.CanRedrawInCombat()
+        or #{QuestieCompat.GetQuestTimers()} > 0 then
+        return false
+    end
+
+    local revision = layout.revision
+    if refreshQuestData then
+        TrackerData.Refresh()
+        revision = TrackerData.GetLayoutRevision()
+        if onlyIfChanged and revision == layout.revision then
+            return false
+        end
+        layout.questIds, layout.details, layout.pinnedIds, layout.completedIds = TrackerUtils:GetSortedQuestIds()
+    end
+
+    -- The normal update must reconnect secure item buttons to the newly drawn rows after combat.
+    layoutRevision = nil
+    TrackerLinePool.ResetLinesForChange(true)
+    TrackerLayout.ResetLineWidth()
+    _DrawQuestSections(layout.questIds, layout.details, layout.pinnedIds, layout.completedIds)
+    QuestieTracker:UpdateFormatting(true)
+    TrackerLinePool.RefreshHighlight()
+    layout.revision = revision
+    return true
+end
 
 ---@param onlyIfChanged boolean? Skip the layout when quest data is unchanged since the last one. Only for quest-log events.
 function QuestieTracker:Update(onlyIfChanged)
@@ -925,6 +993,7 @@ function QuestieTracker:Update(onlyIfChanged)
     end
     -- Not set by skipped checks, so they never throttle the next explicit update.
     lastTrackerUpdate = now
+    combatCategoryLayout = nil
 
     TrackerHeaderFrame:Update()
     TrackerQuestFrame:Update()
@@ -935,7 +1004,7 @@ function QuestieTracker:Update(onlyIfChanged)
     -- This is needed so the Tracker can also decrease its width
     TrackerLayout.ResetLineWidth()
 
-    local sortedQuestIds, questDetails, pinnedQuestIds = TrackerUtils:GetSortedQuestIds()
+    local sortedQuestIds, questDetails, pinnedQuestIds, completedQuestIds = TrackerUtils:GetSortedQuestIds()
 
     if isChallengeMode then
         -- Challenge Mode is active, so we only show the Challenge Mode objectives
@@ -949,21 +1018,7 @@ function QuestieTracker:Update(onlyIfChanged)
             ChallengeModeTimer.SetTimerLabel(nil)
         end
 
-        -- Pinned quests go above every section of the regular tracker.
-        QuestSection.Draw(pinnedQuestIds, questDetails, true)
-
-        -- Populate the remaining sections in the configured order.
-        local showAchievements = Expansions.Current >= Expansions.Wotlk
-        if Questie.db.profile.listAchievementsFirst and showAchievements then
-            AchievementSection.Draw()
-            QuestSection.Draw(sortedQuestIds, questDetails)
-        else
-            QuestSection.Draw(sortedQuestIds, questDetails)
-            if showAchievements then
-                AchievementSection.Draw()
-            end
-        end
-        RecipeSection.Draw()
+        _DrawQuestSections(sortedQuestIds, questDetails, pinnedQuestIds, completedQuestIds)
     end
 
     -- Update tracker formatting
@@ -973,6 +1028,12 @@ function QuestieTracker:Update(onlyIfChanged)
     TrackerLinePool.RefreshHighlight()
     -- Only a completed layout is current. One that errors partway is retried by the next quest-log check.
     layoutRevision = showsQuests and revision or nil
+    if showsQuests and Questie.IsForever and Questie.db.profile.trackerCombatCategoryToggles then
+        combatCategoryLayout = {
+            questIds = sortedQuestIds, details = questDetails, pinnedIds = pinnedQuestIds, completedIds = completedQuestIds,
+            profile = Questie.db.profile, revision = revision,
+        }
+    end
 
     -- First run clean up
     if isFirstRun then
@@ -988,7 +1049,8 @@ function QuestieTracker:Update(onlyIfChanged)
     end
 end
 
-function QuestieTracker:UpdateFormatting()
+---@param combatCategoryRedraw boolean? Restrict formatting to unprotected quest-list geometry.
+function QuestieTracker:UpdateFormatting(combatCategoryRedraw)
     if not allowFormattingUpdate then
         return
     end
@@ -1006,26 +1068,24 @@ function QuestieTracker:UpdateFormatting()
     -- Hide unused lines
     TrackerLinePool.HideUnusedLines()
 
-    -- Hide unused item buttons
-    QuestieCombatQueue:Queue(function()
-        TrackerLinePool.HideUnusedButtons()
-    end)
+    if not combatCategoryRedraw then
+        -- Hide unused item buttons.
+        QuestieCombatQueue:Queue(function()
+            TrackerLinePool.HideUnusedButtons()
+        end)
 
-    -- This is responsible for handling the visibility of the Tracker
-    -- when nothing is tracked or when alwaysShowTracker is being used.
-    -- Skipped while hiddenByInstance is true, so a normal Update() doesn't undo the
-    -- explicit Hide() applied by HandleZoneChanged().
-    if (not TrackerUtils.HasQuest()) then
-        if Questie.db.profile.alwaysShowTracker and (not hiddenByInstance) then
+        -- Keep explicit instance hides in effect across updates.
+        if not TrackerUtils.HasQuest() then
+            if Questie.db.profile.alwaysShowTracker and not hiddenByInstance then
+                trackerBaseFrame:Show()
+            else
+                trackerBaseFrame:Hide()
+            end
+        elseif not hiddenByInstance then
             trackerBaseFrame:Show()
-        else
-            trackerBaseFrame:Hide()
         end
-    elseif (not hiddenByInstance) then
-        trackerBaseFrame:Show()
+        TrackerHeaderFrame:Update()
     end
-
-    TrackerHeaderFrame:Update()
 
     if TrackerLinePool.GetCurrentLine() and TrackerLayout.GetLineWidth() > 1 then
         local trackerVarsCombined = TrackerLayout.GetLineWidth() + trackerMarginRight
@@ -1099,11 +1159,16 @@ function QuestieTracker:UpdateFormatting()
             entryHeight = entryHeight + line:GetHeight()
         end
         QuestieTracker:UpdateHeight(lastLineFocusHeight)
-        TrackerQuestFrame:Update()
+        if not combatCategoryRedraw then
+            TrackerQuestFrame:Update()
+        end
     elseif trackerHeaderFrame.classicTheme then
         QuestieTracker:UpdateWidth(0)
     end
 
+    if combatCategoryRedraw then
+        return
+    end
     TrackerBaseFrame:Update()
 
     if Questie.db.profile.trackerHeaderEnabled or (Questie.db.profile.alwaysShowTracker and not TrackerUtils.HasQuest()) then
@@ -1295,6 +1360,9 @@ function QuestieTracker.SetQuestPinned(questId, pinned)
 
     Questie.db.char.PinnedQuests[questId] = pinned or nil
     QuestieCombatQueue:Queue(function() QuestieTracker:Update() end)
+    if Questie.IsForever and Questie.db.profile.trackerCombatCategoryToggles and InCombatLockdown() then
+        QuestieTracker.TryRedrawCombatCategories(true)
+    end
 end
 
 local function _AddQuestLogPinOption(owner, rootDescription)
@@ -1320,13 +1388,36 @@ local function _AddQuestLogPinOption(owner, rootDescription)
                 if not QuestieTracker.IsTrackedByQuestie(questId) then
                     -- A native watch can already exist or the native watch list can be full.
                     -- Use the same Questie tracking path as the watch hook in either case.
-                    QuestieTracker:AQW_Insert(QuestieCompat.GetQuestLogIndexByID(questId), QUEST_WATCH_NO_EXPIRE)
+                    QuestieTracker:AQW_Insert(QuestieCompat.GetQuestLogIndexByID(questId), QUEST_WATCH_NO_EXPIRE, false, true)
                 end
             end
 
             QuestieTracker.SetQuestPinned(questId, shouldPin)
         end)
     end)
+end
+
+local function _SyncRemovedQuestWatch(questId, removalConfirmed)
+    local profile, char = Questie.db.profile, Questie.db.char
+    if not questId or QuestieTracker.disableHooks or not profile.trackerEnabled then
+        return
+    end
+
+    -- An untrack initiated by our tracker clears its state before removing the native watch.
+    if (char.PinnedQuests[questId] or QuestieTracker.IsTrackedByQuestie(questId))
+        and (removalConfirmed or C_QuestLog.GetQuestWatchType(questId) == nil) then
+        QuestieTracker:UntrackQuestId(questId, true)
+    end
+end
+
+local function _SyncAddedQuestWatch(questId, explicitTrack)
+    if QuestieTracker.disableHooks or not Questie.db.profile.trackerEnabled then
+        return
+    end
+
+    if C_QuestLog.GetQuestWatchType(questId) ~= nil then
+        QuestieTracker:AQW_Insert(QuestieCompat.GetQuestLogIndexByID(questId), QUEST_WATCH_NO_EXPIRE, false, explicitTrack)
+    end
 end
 
 function QuestieTracker:HookBaseTracker()
@@ -1350,26 +1441,32 @@ function QuestieTracker:HookBaseTracker()
         if Questie.IsForever then
             Menu.ModifyMenu("MENU_QUEST_MAP_LOG_TITLE", _AddQuestLogPinOption)
             Menu.ModifyMenu("MENU_QUEST_LOG_POPUP_DETAIL_FRAME", _AddQuestLogPinOption)
+            -- Forever's Mainline QuestMapFrame calls this toggle for shift-click and quest menus.
+            -- Its AddQuestWatch call also occurs on accept, so only this toggle is explicitly manual.
+            if _G.QuestMapQuestOptions_TrackQuest then
+                hooksecurefunc("QuestMapQuestOptions_TrackQuest", function(questId)
+                    C_Timer.After(0, function()
+                        _SyncAddedQuestWatch(questId, true)
+                    end)
+                end)
+            end
             hooksecurefunc(C_QuestLog, "AddQuestWatch", function(questId)
-                if QuestieTracker.disableHooks or not Questie.db.profile.trackerEnabled then
-                    return
-                end
-                if C_QuestLog.GetQuestWatchType(questId) ~= nil then
-                    QuestieTracker:AQW_Insert(QuestieCompat.GetQuestLogIndexByID(questId), QUEST_WATCH_NO_EXPIRE)
+                _SyncAddedQuestWatch(questId, false)
+            end)
+            -- Forever's documented event is synchronous and also covers native changes that bypass Lua hooks.
+            Questie:RegisterEvent("QUEST_WATCH_LIST_CHANGED", function(_, questId, added)
+                if questId and added == true then
+                    C_Timer.After(0, function()
+                        _SyncAddedQuestWatch(questId, false)
+                    end)
+                elseif added == false then
+                    _SyncRemovedQuestWatch(questId, true)
                 end
             end)
             hooksecurefunc(C_QuestLog, "RemoveQuestWatch", function(questId)
-                if QuestieTracker.disableHooks or not Questie.db.profile.trackerEnabled then
-                    return
-                end
-                -- Questie's own untrack path updates its state before removing the native watch.
-                -- Only process a native removal if it still changes Questie's state, avoiding recursion.
-                local autoTrack = Questie.db.profile.autoTrackQuests
-                local isTracked = (autoTrack and not Questie.db.char.AutoUntrackedQuests[questId])
-                    or (not autoTrack and Questie.db.char.TrackedQuests[questId])
-                if isTracked and C_QuestLog.GetQuestWatchType(questId) == nil then
-                    QuestieTracker:UntrackQuestId(questId)
-                end
+                C_Timer.After(0, function()
+                    _SyncRemovedQuestWatch(questId, false)
+                end)
             end)
         else
             if AutoQuestWatch_Insert then
@@ -1452,19 +1549,39 @@ function QuestieTracker.RemoveQuestWatch(index, isQuestie)
     end
 end
 
-function QuestieTracker:UntrackQuestId(questId)
+---@param questId QuestId
+---@param nativeWatchRemoved boolean? Whether the client has already reported removing the watch
+function QuestieTracker:UntrackQuestId(questId, nativeWatchRemoved)
     Questie.Debug(Questie.DEBUG_DEVELOP, "[QuestieTracker:UntrackQuestId] - ", questId)
     Questie.db.char.PinnedQuests[questId] = nil
     if not Questie.db.profile.autoTrackQuests then
         Questie.db.char.TrackedQuests[questId] = nil
-    else
+    end
+    if Questie.IsForever or Questie.db.profile.autoTrackQuests then
         Questie.db.char.AutoUntrackedQuests[questId] = true
     end
 
-    if Questie.IsForever and C_QuestLog.GetQuestWatchType(questId) ~= nil then
-        -- Keep the modern quest log's track checkbox consistent when untracking from Questie's menu.
-        TaintWatch.Note("RemoveQuestWatch", questId)
-        C_QuestLog.RemoveQuestWatch(questId)
+    QuestieCombatQueue:Queue(function()
+        QuestieTracker:Update()
+    end)
+    local inCombat = InCombatLockdown()
+    if Questie.IsForever and inCombat and Questie.db.profile.trackerCombatCategoryToggles then
+        QuestieTracker.TryRedrawCombatCategories(true)
+    end
+
+    if Questie.IsForever and not nativeWatchRemoved then
+        local function RemoveNativeWatch()
+            -- A queued removal can run after the player has tracked the quest again.
+            if not QuestieTracker.IsTrackedByQuestie(questId) and C_QuestLog.GetQuestWatchType(questId) ~= nil then
+                TaintWatch.Note("RemoveQuestWatch", questId)
+                C_QuestLog.RemoveQuestWatch(questId)
+            end
+        end
+        if inCombat then
+            QuestieCombatQueue:Queue(RemoveNativeWatch)
+        else
+            RemoveNativeWatch()
+        end
     end
 
     if Questie.db.profile.hideUntrackedQuestsMapIcons then
@@ -1478,15 +1595,12 @@ function QuestieTracker:UntrackQuestId(questId)
     end
 
     CommsVisibility:ScheduleSnapshot("UNTRACK_QUEST")
-
-    QuestieCombatQueue:Queue(function()
-        QuestieTracker:Update()
-    end)
 end
 
 ---@param watchTimer number? Legacy quest-watch duration
 ---@param keepCollapsed boolean? Keeps saved tracker state when native watches are synced on startup
-function QuestieTracker:AQW_Insert(index, watchTimer, keepCollapsed)
+---@param explicitTrack boolean? Whether a user action explicitly retracked this quest on Forever
+function QuestieTracker:AQW_Insert(index, watchTimer, keepCollapsed, explicitTrack)
     Questie.Debug(Questie.DEBUG_DEVELOP, "[QuestieTracker:AQW_Insert]")
     if (not Questie.db.profile.trackerEnabled) or (index == 0) or (index == nil) then
         return
@@ -1497,6 +1611,15 @@ function QuestieTracker:AQW_Insert(index, watchTimer, keepCollapsed)
     -- Ignore it, or manual tracking mode would track every newly accepted quest.
     if not questId or not QuestEventHandler.IsQuestAccepted(questId) then
         return
+    end
+    local manualWatch
+    if Questie.IsForever then
+        local manualType = Enum.QuestWatchType and Enum.QuestWatchType.Manual or 1
+        manualWatch = explicitTrack or C_QuestLog.GetQuestWatchType(questId) == manualType
+        if Questie.db.char.AutoUntrackedQuests[questId] and (keepCollapsed or not manualWatch) then
+            -- Keep saved untracks through startup sync and automatic watches. A new manual watch retracks the quest.
+            return
+        end
     end
 
     -- This prevents double calling this function
@@ -1526,9 +1649,8 @@ function QuestieTracker:AQW_Insert(index, watchTimer, keepCollapsed)
         -- or another Addon hooked into the Blizzard Quest Log that replaces the default Quest Log.
         if Questie.IsForever then
             -- Modern AddQuestWatch is an idempotent add, not the legacy shift-click toggle.
-            if Questie.db.profile.autoTrackQuests then
-                Questie.db.char.AutoUntrackedQuests[questId] = nil
-            else
+            Questie.db.char.AutoUntrackedQuests[questId] = nil
+            if not Questie.db.profile.autoTrackQuests then
                 Questie.db.char.TrackedQuests[questId] = true
             end
         elseif not Questie.db.profile.autoTrackQuests then
@@ -1556,11 +1678,7 @@ function QuestieTracker:AQW_Insert(index, watchTimer, keepCollapsed)
                 -- Legacy clients can toggle tracking off through this same watch hook.
                 char.PinnedQuests[questId] = nil
             elseif profile.trackerAutoPinTrackedQuests and not keepCollapsed then
-                local manualWatch
-                if Questie.IsForever then
-                    local manualType = Enum.QuestWatchType and Enum.QuestWatchType.Manual or 1
-                    manualWatch = C_QuestLog.GetQuestWatchType(questId) == manualType
-                else
+                if not Questie.IsForever then
                     manualWatch = (watchTimer ~= nil and watchTimer == QUEST_WATCH_NO_EXPIRE)
                         or (IsShiftKeyDown() and QuestLogFrame and QuestLogFrame:IsShown())
                         or (watchTimer == nil and not AutoQuestWatch_Insert)

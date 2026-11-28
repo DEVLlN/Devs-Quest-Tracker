@@ -14,7 +14,10 @@ local TrackerQuestTimers = QuestieLoader:ImportModule("TrackerQuestTimers")
 ---@type l10n
 local l10n = QuestieLoader:ImportModule("l10n")
 
-local PINNED_GROUP_KEY = "Questie:PinnedQuests"
+local SPECIAL_GROUPS = {
+    pinned = {key = "Questie:PinnedQuests", title = "Pinned Quests"},
+    completed = {key = "Questie:CompletedQuests", title = "Completed Quests"},
+}
 
 local DUNGEON_CATEGORY = 2
 -- Forever's Group Finder can omit these activities from its current listing.
@@ -74,15 +77,57 @@ local function _IsQuestShown(questId, quest, complete)
         or (not Questie.db.profile.autoTrackQuests and Questie.db.char.TrackedQuests[questId])) and true or false
 end
 
+local function _IsMinimizable(quest, complete)
+    return complete == 1 or complete == -1 or (#quest.Objectives == 0 and quest.isComplete == true)
+end
+
+---Checks the requested layout without allocating any quest item buttons.
 ---@param sortedQuestIds QuestId[]
 ---@param questDetails table<QuestId, {quest: TrackerQuest, zoneName: string}>
----@param pinned boolean? Whether to draw quests in the separate pinned group
-function QuestSection.Draw(sortedQuestIds, questDetails, pinned)
+---@param specialGroup ("pinned"|"completed")?
+function QuestSection.HasVisibleQuestItems(sortedQuestIds, questDetails, specialGroup)
+    local autoCollapse = Questie.db.profile.collapseCompletedQuests
+    local group = SPECIAL_GROUPS[specialGroup]
+    for _, questId in ipairs(sortedQuestIds) do
+        local detail = questDetails[questId]
+        local quest = detail.quest
+        local complete = quest:IsComplete()
+        local collapsed
+        if group then
+            collapsed = Questie.db.char.collapsedZones[group.key]
+        else
+            collapsed = TrackerUtils.IsQuestZoneCollapsed(detail.zoneName)
+        end
+        if not collapsed and not Questie.db.char.collapsedQuests[questId]
+            and not (autoCollapse and not quest.trackTimedQuest and _IsMinimizable(quest, complete))
+            and _IsQuestShown(questId, quest, complete)
+            and #TrackerUtils.GetQuestItemIds(quest, complete) > 0 then
+            return true
+        end
+    end
+    return false
+end
+
+---@param sortedQuestIds QuestId[]
+---@param questDetails table<QuestId, {quest: TrackerQuest, zoneName: string}>
+---@param specialGroup ("pinned"|"completed")?
+function QuestSection.Draw(sortedQuestIds, questDetails, specialGroup)
     local margins = TrackerLayout.GetMargins()
     local profile = Questie.db.profile
     local objectiveColor = profile.trackerColorObjectives
-    local markedHeaders = Questie.IsForever and profile.trackerShowDungeonMarker and not pinned
+    local group = SPECIAL_GROUPS[specialGroup]
+    local markedHeaders = Questie.IsForever and profile.trackerShowDungeonMarker and not group
         and TrackerUtils.UsesQuestZoneGrouping() and _GetDungeonHeaders()
+
+    local groupsWithCompletedQuests = {}
+    for _, questId in ipairs(sortedQuestIds) do
+        local detail = questDetails[questId]
+        local quest = detail.quest
+        local complete = quest:IsComplete()
+        if (complete == 1 or (complete ~= -1 and quest.isComplete)) and _IsQuestShown(questId, quest, complete) then
+            groupsWithCompletedQuests[group and group.key or detail.zoneName] = true
+        end
+    end
 
     local line
     local currentGroup
@@ -96,18 +141,24 @@ function QuestSection.Draw(sortedQuestIds, questDetails, pinned)
         ---@type TrackerQuest
         local quest = questDetails[questId].quest
         local complete = quest:IsComplete()
-        local groupKey = pinned and PINNED_GROUP_KEY or questDetails[questId].zoneName
+        local groupKey = group and group.key or questDetails[questId].zoneName
 
         TrackerQuestTimers:UpdateAndGetRemainingTime(quest, nil, true)
         local timedQuest = quest.trackTimedQuest
 
         if _IsQuestShown(questId, quest, complete) then
             if currentGroup ~= groupKey then
-                local title = pinned and l10n("Pinned Quests") or groupKey
+                local title = group and l10n(group.title) or groupKey
                 if markedHeaders and markedHeaders[groupKey] then
                     title = profile.trackerDungeonMarkerPosition == "after" and (title .. " [D]") or ("[D] " .. title)
                 end
-                line, groupCollapsed = LineBuilder.AddHeader({key = groupKey, text = title, questZone = not pinned})
+                local collapsedText
+                if groupsWithCompletedQuests[groupKey] then
+                    collapsedText = title .. " |T" .. Questie.icons["complete"] .. ":0|t +"
+                end
+                line, groupCollapsed = LineBuilder.AddHeader({
+                    key = groupKey, text = title, collapsedText = collapsedText, questZone = not group,
+                })
                 if not line then
                     break
                 end
@@ -136,7 +187,7 @@ function QuestSection.Draw(sortedQuestIds, questDetails, pinned)
                 end
 
                 -- Set minimizable quest flag
-                local isMinimizable = (complete == 1 or complete == -1) or (#quest.Objectives == 0 and quest.isComplete == true)
+                local isMinimizable = _IsMinimizable(quest, complete)
 
                 -- Handles the collapseCompletedQuests option from the Questie Config --> Tracker options.
                 if Questie.db.profile.collapseCompletedQuests and isMinimizable and (not timedQuest) then

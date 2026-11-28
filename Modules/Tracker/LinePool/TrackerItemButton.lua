@@ -17,6 +17,55 @@ local LSM30 = LibStub("LibSharedMedia-3.0")
 local GetItemCount = QuestieCompat.GetItemCount
 local IsItemInRange = C_Item.IsItemInRange or IsItemInRange
 
+---Positions a beta item button without anchoring it to the tracker.
+function TrackerItemButton.SyncDetachedPosition(button, scrollFrame, layoutDirty)
+    local line = button.detachedLine
+    local right, top = line:GetRight(), line:GetTop()
+    local left, bottom, width, height = scrollFrame:GetRect()
+    if layoutDirty or not line:IsVisible() or not right or not top or not left then
+        button:Hide()
+        return
+    end
+
+    local scale = line:GetEffectiveScale()
+    local scrollRatio = scrollFrame:GetEffectiveScale() / scale
+    local buttonScale = scale / UIParent:GetEffectiveScale()
+    local x, y = right + button.detachedOffset, top + 1
+    local size = button:GetWidth()
+    local insetLeft = math.max(0, left * scrollRatio - (x - size))
+    local insetRight = math.max(0, x - (left + width) * scrollRatio)
+    local insetTop = math.max(0, y - (bottom + height) * scrollRatio)
+    local insetBottom = math.max(0, bottom * scrollRatio - (y - size))
+    if insetLeft + insetRight >= size or insetTop + insetBottom >= size then
+        button:Hide()
+        return
+    end
+
+    if button.detachedX ~= x or button.detachedY ~= y or button.detachedScale ~= buttonScale then
+        button:SetScale(buttonScale)
+        button:ClearAllPoints()
+        button:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", x, y)
+        button.detachedX, button.detachedY, button.detachedScale = x, y, buttonScale
+    end
+    if button.detachedInsetLeft ~= insetLeft or button.detachedInsetRight ~= insetRight
+        or button.detachedInsetTop ~= insetTop or button.detachedInsetBottom ~= insetBottom then
+        button:SetHitRectInsets(insetLeft, insetRight, insetTop, insetBottom)
+        button.detachedInsetLeft, button.detachedInsetRight = insetLeft, insetRight
+        button.detachedInsetTop, button.detachedInsetBottom = insetTop, insetBottom
+    end
+    if not button:IsShown() then
+        button:Show()
+    end
+end
+
+function TrackerItemButton.ClearDetachedPosition(button)
+    button.detachedLine, button.detachedOffset = nil, nil
+    button.detachedX, button.detachedY, button.detachedScale = nil, nil, nil
+    button.detachedInsetLeft, button.detachedInsetRight, button.detachedInsetTop, button.detachedInsetBottom = nil, nil, nil, nil
+    button:SetScale(1)
+    button:SetHitRectInsets(0, 0, 0, 0)
+end
+
 ---@param buttonName string
 ---@param OnHighlightEnter function @Callback function to highlight the quest of a line
 ---@param OnHighlightLeave function @Callback function to remove the highlight
@@ -196,8 +245,7 @@ function TrackerItemButton.New(buttonName, OnHighlightEnter, OnHighlightLeave)
         GameTooltip:Show()
 
         TrackerFadeTicker.Unfade(self)
-        -- Highlights the quest of the line the button is attached to. In combat it can stay on UIParent.
-        local line = self:GetParent()
+        local line = self.detachedLine or self:GetParent()
         if line and line.Quest then
             OnHighlightEnter(line)
         end

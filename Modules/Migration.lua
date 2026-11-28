@@ -350,6 +350,33 @@ local migrationFunctions = {
             profile.trackerDungeonMarkerPosition = "before"
         end
     end,
+    [57] = function()
+        local profile = Questie.db.profile
+        if profile.trackerCombatCategoryToggles == nil then
+            profile.trackerCombatCategoryToggles = false
+        end
+    end,
+    [58] = function()
+        local profile = Questie.db.profile
+        if profile.trackerbindPinQuest == nil or profile.trackerbindPinQuest == "ctrlright" then
+            local isTaken = profile.trackerbindOpenQuestLog == "ctrlright" or profile.trackerbindUntrack == "ctrlright"
+                or profile.trackerbindShareQuest == "ctrlright" or profile.trackerbindSetTomTom == "ctrlright"
+            profile.trackerbindPinQuest = isTaken and "disabled" or "ctrlright"
+        end
+    end,
+    [59] = function()
+        local profile = Questie.db.profile
+        if profile.trackerAutoPinCompleteQuests == nil then
+            profile.trackerAutoPinCompleteQuests = false
+        end
+    end,
+    [60] = function()
+        local profile = Questie.db.profile
+        profile.trackerAutoPinCompleteQuests = nil
+        if profile.trackerGroupCompletedQuests == nil then
+            profile.trackerGroupCompletedQuests = true
+        end
+    end,
 }
 
 function Migration:Migrate()

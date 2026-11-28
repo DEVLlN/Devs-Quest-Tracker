@@ -555,6 +555,23 @@ describe("TrackerMenu", function()
             assert.spy(compat.QuestLog_Update).was.not_called()
         end)
 
+        it("untracks the quest selected in the Forever menu after it closes", function()
+            local originalForever, originalTimer = Questie.IsForever, _G.C_Timer
+            local deferred
+            Questie.IsForever = true
+            _G.C_Timer = {After = function(_, callback) deferred = callback end}
+            local menu, quest = {}, {Id = 783}
+            TrackerMenu.addUntrackOption(menu, quest)
+
+            menu[1].func()
+            Questie.IsForever, _G.C_Timer = originalForever, originalTimer
+            assert.spy(tracker.UntrackQuestId).was.not_called()
+
+            quest.Id = 11
+            deferred()
+            assert.spy(tracker.UntrackQuestId).was.called_with(tracker, 783)
+        end)
+
         it("should share the quest", function()
             local utils = QuestieLoader:ImportModule("TrackerUtils")
             utils.ShareQuest = spy.new(function() end)

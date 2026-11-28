@@ -6,6 +6,7 @@ describe("QuestSection", function()
     local QuestSection
     local TrackerLinePool, TrackerLayout, TrackerUtils, TrackerData, TrackerQuestTimers
     local previousIsForever, previousMap, previousLFGList
+    local previousIcons
 
     local texts, availableLines, drawnLines
 
@@ -53,6 +54,8 @@ describe("QuestSection", function()
 
     before_each(function()
         previousIsForever, previousMap, previousLFGList = Questie.IsForever, _G.C_Map, _G.C_LFGList
+        previousIcons = Questie.icons
+        Questie.icons = {complete = "CompleteIcon"}
         texts = {}
         drawnLines = {}
         availableLines = 100
@@ -109,6 +112,7 @@ describe("QuestSection", function()
 
     after_each(function()
         Questie.IsForever, _G.C_Map, _G.C_LFGList = previousIsForever, previousMap, previousLFGList
+        Questie.icons = previousIcons
     end)
 
     it("should draw the zone header, the quest and its objectives", function()
@@ -280,6 +284,54 @@ describe("QuestSection", function()
         assert.are_same({"|cFFC0C0C0Elwynn Forest +|r"}, texts)
     end)
 
+    it("should mark a collapsed category when a shown quest in it is complete", function()
+        Questie.db.char.collapsedZones = {Westfall = true, ["Dun Morogh"] = true}
+        Questie.db.char.AutoUntrackedQuests[4] = true
+        local failed = _Quest(3, -1)
+        failed.isComplete = true
+        local ids, details = _Details({
+            {quest = _Quest(1, 0), zoneName = "Westfall"},
+            {quest = _Quest(2, 1), zoneName = "Westfall"},
+            {quest = failed, zoneName = "Dun Morogh"},
+            {quest = _Quest(4, 1), zoneName = "Dun Morogh"},
+            {quest = _Quest(5, 1), zoneName = "Elwynn Forest"},
+        })
+        QuestSection.Draw(ids, details)
+
+        assert.are.equal("|cFFC0C0C0Westfall |TCompleteIcon:0|t +|r", texts[1])
+        assert.are.equal("|cFFC0C0C0Dun Morogh +|r", texts[2])
+        assert.are.equal("|cFFC0C0C0Elwynn Forest|r", texts[3])
+
+        texts = {}
+        Questie.db.profile.trackerShowCompleteQuests = false
+        QuestSection.Draw(ids, details)
+        assert.are_same({"|cFFC0C0C0Westfall +|r"}, texts)
+    end)
+
+    it("should mark collapsed pinned quests that are ready to turn in", function()
+        Questie.db.char.collapsedZones["Questie:PinnedQuests"] = true
+        local quest = _Quest(1, 0)
+        quest.isComplete = true
+        local ids, details = _Details({{quest = quest, zoneName = "Westfall"}})
+
+        QuestSection.Draw(ids, details, "pinned")
+
+        assert.are_same({"|cFFC0C0C0Pinned Quests |TCompleteIcon:0|t +|r"}, texts)
+    end)
+
+    it("draws a Completed Quests header only for visible completed entries", function()
+        local ids, details = _Details({{quest = _Quest(1, 1), zoneName = "Westfall"}})
+        Questie.db.char.collapsedZones["Questie:CompletedQuests"] = true
+        QuestSection.Draw(ids, details, "completed")
+        assert.are_same({"|cFFC0C0C0Completed Quests |TCompleteIcon:0|t +|r"}, texts)
+
+        texts = {}
+        QuestSection.Draw({}, details, "completed")
+        Questie.db.profile.trackerShowCompleteQuests = false
+        QuestSection.Draw(ids, details, "completed")
+        assert.are.same({}, texts)
+    end)
+
     it("should hide completed objectives when configured", function()
         Questie.db.profile.hideCompletedQuestObjectives = true
         local quest = _Quest(1, 0, {
@@ -389,6 +441,15 @@ describe("QuestSection", function()
             Questie.db.char.AutoUntrackedQuests[1] = true
 
             assert.is_false(QuestSection.HasVisibleQuestItems(_Details({{quest = _Quest(1, 0), zoneName = "Elwynn Forest"}})))
+        end)
+
+        it("should check the pinned group collapse state instead of the quest zone", function()
+            local ids, details = _Details({{quest = _Quest(1, 0), zoneName = "Elwynn Forest"}})
+            Questie.db.char.collapsedZones["Elwynn Forest"] = true
+            assert.is_true(QuestSection.HasVisibleQuestItems(ids, details, "pinned"))
+
+            Questie.db.char.collapsedZones["Questie:PinnedQuests"] = true
+            assert.is_false(QuestSection.HasVisibleQuestItems(ids, details, "pinned"))
         end)
     end)
 end)

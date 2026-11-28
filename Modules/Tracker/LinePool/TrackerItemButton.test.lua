@@ -27,6 +27,41 @@ describe("TrackerItemButton", function()
         TrackerItemButton = QuestieLoader:ImportModule("TrackerItemButton")
     end)
 
+    it("keeps a detached button anchored to the screen and hides it when its row is stale", function()
+        local originalUIParent = _G.UIParent
+        local root = {GetEffectiveScale = function() return 1 end}
+        _G.UIParent = root
+        local button = {
+            detachedLine = {
+                GetRight = function() return 200 end,
+                GetTop = function() return 100 end,
+                GetEffectiveScale = function() return 1 end,
+                IsVisible = function() return true end,
+            },
+            detachedOffset = -5,
+            GetWidth = function() return 20 end,
+            IsShown = function() return false end,
+            ClearAllPoints = function() end,
+            SetScale = function() end,
+            SetHitRectInsets = function() end,
+            SetPoint = spy.new(function() end),
+            Hide = spy.new(function() end),
+            Show = spy.new(function() end),
+        }
+        local scroll = {
+            GetRect = function() return 0, 0, 300, 200 end,
+            GetEffectiveScale = function() return 1 end,
+        }
+
+        TrackerItemButton.SyncDetachedPosition(button, scroll, false)
+        TrackerItemButton.SyncDetachedPosition(button, scroll, true)
+        _G.UIParent = originalUIParent
+
+        assert.spy(button.SetPoint).was.called_with(button, "TOPRIGHT", root, "BOTTOMLEFT", 195, 101)
+        assert.spy(button.Show).was.called(1)
+        assert.spy(button.Hide).was.called(1)
+    end)
+
     after_each(function()
         getItemCountMock:revert()
         getItemCooldownMock:revert()
