@@ -31,6 +31,7 @@ describe("TrackerItemButton", function()
         local originalUIParent = _G.UIParent
         local root = {GetEffectiveScale = function() return 1 end}
         _G.UIParent = root
+        local anchor
         local button = {
             detachedLine = {
                 GetRight = function() return 200 end,
@@ -44,7 +45,7 @@ describe("TrackerItemButton", function()
             ClearAllPoints = function() end,
             SetScale = function() end,
             SetHitRectInsets = function() end,
-            SetPoint = spy.new(function() end),
+            SetPoint = function(_, ...) anchor = {...} end,
             Hide = spy.new(function() end),
             Show = spy.new(function() end),
         }
@@ -57,7 +58,7 @@ describe("TrackerItemButton", function()
         TrackerItemButton.SyncDetachedPosition(button, scroll, true)
         _G.UIParent = originalUIParent
 
-        assert.spy(button.SetPoint).was.called_with(button, "TOPRIGHT", root, "BOTTOMLEFT", 195, 101)
+        assert.same({"TOPRIGHT", root, "BOTTOMLEFT", 195, 101}, anchor)
         assert.spy(button.Show).was.called(1)
         assert.spy(button.Hide).was.called(1)
     end)

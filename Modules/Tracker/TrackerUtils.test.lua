@@ -704,7 +704,7 @@ describe("TrackerUtils", function()
             QuestieLoader:ImportModule("QuestieCompat").GetItemIcon = getIcon
             layout.GetMargins = function() return {itemButtonSize = 16} end
             layout.ITEM_BUTTON_GAP, layout.ITEM_BUTTON_RIGHT_EXTENSION = 4, 12
-            local line = _GetMockedLine()
+            local line = {expandQuest = {SetShown = function() end}}
             local quest = {Id = 1, sourceItemId = 123, Objectives = {}, ObjectiveData = {}}
 
             local shouldContinue, inset = TrackerUtils.AddQuestItemButtons(quest, 0, line, false, false)
