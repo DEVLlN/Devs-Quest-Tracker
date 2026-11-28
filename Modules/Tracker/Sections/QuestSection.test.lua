@@ -5,6 +5,7 @@ describe("QuestSection", function()
     ---@type QuestSection
     local QuestSection
     local TrackerLinePool, TrackerLayout, TrackerUtils, TrackerData, TrackerQuestTimers
+    local previousIsForever, previousMap, previousLFGList
 
     local texts, availableLines, drawnLines
 
@@ -51,6 +52,7 @@ describe("QuestSection", function()
     end
 
     before_each(function()
+        previousIsForever, previousMap, previousLFGList = Questie.IsForever, _G.C_Map, _G.C_LFGList
         texts = {}
         drawnLines = {}
         availableLines = 100
@@ -71,7 +73,12 @@ describe("QuestSection", function()
         Questie.Colorize = function(_, text) return text end
 
         TrackerLayout = QuestieLoader:ImportModule("TrackerLayout")
-        TrackerLayout.GetMargins = function() return {left = 14, right = 30, quest = 20, objective = 30, itemButtonSize = 24, buttonSize = 15, playButtonRight = 13, playButtonSize = 17} end
+        TrackerLayout.GetMargins = function()
+            return {
+                left = 14, right = 30, quest = 20, objective = 30, itemButtonSize = 24, buttonSize = 15,
+                playButtonRight = 13, playButtonSize = 17, focusButtonRight = 13, focusButtonSize = 15,
+            }
+        end
         TrackerLayout.UpdateWidth = function() end
         TrackerLayout.GetBaseFrame = function() return {} end
         TrackerLayout.GetBaseFrameWidth = function() return 400 end
@@ -83,8 +90,9 @@ describe("QuestSection", function()
         TrackerLinePool.GetLastLine = _FakeLine
 
         TrackerUtils = QuestieLoader:ImportModule("TrackerUtils")
+        TrackerUtils.IsQuestZoneCollapsed = function(key) return Questie.db.char.collapsedZones[key] == true end
         TrackerUtils.GetCompletionText = function() return nil end
-        TrackerUtils.AddQuestItemButtons = spy.new(function() return true end)
+        TrackerUtils.AddQuestItemButtons = spy.new(function() return true, 0 end)
 
         TrackerData = QuestieLoader:ImportModule("TrackerData")
         TrackerData.GetColoredQuestName = function(quest) return "Quest " .. quest.Id end
@@ -99,6 +107,10 @@ describe("QuestSection", function()
         QuestSection = QuestieLoader:ImportModule("QuestSection")
     end)
 
+    after_each(function()
+        Questie.IsForever, _G.C_Map, _G.C_LFGList = previousIsForever, previousMap, previousLFGList
+    end)
+
     it("should draw the zone header, the quest and its objectives", function()
         local quest = _Quest(1, 0, {{Description = "Wolf slain: 1/5", Completed = false}})
 
@@ -106,6 +118,53 @@ describe("QuestSection", function()
 
         assert.are_same({"|cFFC0C0C0Elwynn Forest|r", "Quest 1", "Wolf slain: 1/5"}, texts)
         assert.spy(TrackerUtils.AddQuestItemButtons).was.called(1)
+    end)
+
+    it("should mark only dungeon category labels and use the original collapse keys", function()
+        Questie.IsForever = true
+        Questie.db.profile.trackerShowDungeonMarker = true
+        Questie.db.profile.trackerDungeonMarkerPosition = "before"
+        TrackerUtils.UsesQuestZoneGrouping = function() return true end
+        Questie.db.char.collapsedZones["Scarlet Monastery"] = true
+        _G.C_Map = {GetAreaInfo = function(id) return id == 796 and "Scarlet Monastery" or nil end}
+        _G.C_LFGList = {
+            GetAvailableActivities = function(category)
+                assert.are.equal(2, category)
+                return {799}
+            end,
+            GetActivityInfoTable = function(id)
+                if id == 799 then
+                    return {fullName = "The Deadmines", shortName = "Deadmines"}
+                end
+            end,
+        }
+
+        local ids, details = _Details({
+            {quest = _Quest(1, 0), zoneName = "The Deadmines"},
+            {quest = _Quest(2, 0), zoneName = "Scarlet Monastery"},
+            {quest = _Quest(3, 0), zoneName = "Molten Core"},
+            {quest = _Quest(4, 0), zoneName = "Westfall"},
+        })
+        QuestSection.Draw(ids, details)
+
+        assert.are_same({
+            "|cFFC0C0C0[D] The Deadmines|r", "Quest 1",
+            "|cFFC0C0C0[D] Scarlet Monastery +|r",
+            "|cFFC0C0C0Molten Core|r", "Quest 3",
+            "|cFFC0C0C0Westfall|r", "Quest 4",
+        }, texts)
+
+        texts = {}
+        Questie.db.profile.trackerDungeonMarkerPosition = "after"
+        QuestSection.Draw(ids, details)
+        assert.are.same("|cFFC0C0C0The Deadmines [D]|r", texts[1])
+        assert.are.same("|cFFC0C0C0Scarlet Monastery [D] +|r", texts[3])
+
+        texts = {}
+        Questie.db.profile.trackerShowDungeonMarker = false
+        QuestSection.Draw(ids, details)
+        assert.are.same("|cFFC0C0C0The Deadmines|r", texts[1])
+        assert.are.same("|cFFC0C0C0Scarlet Monastery +|r", texts[3])
     end)
 
     it("should indent the objectives of a quest with a secondary item button", function()

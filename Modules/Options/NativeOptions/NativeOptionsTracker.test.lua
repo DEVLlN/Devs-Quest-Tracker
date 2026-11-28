@@ -14,6 +14,7 @@ describe("native tracker options", function()
 
     before_each(function()
         originals = {
+            IsForever = Questie.IsForever,
             LibStub = _G.LibStub,
             QuestLogExFrame = _G.QuestLogExFrame,
             ClassicQuestLog = _G.ClassicQuestLog,
@@ -45,6 +46,7 @@ describe("native tracker options", function()
     end)
 
     after_each(function()
+        Questie.IsForever = originals.IsForever
         isVoiceOverLoadedStub:revert()
         isSpokenLoadedStub:revert()
         _G.LibStub = originals.LibStub
@@ -61,6 +63,32 @@ describe("native tracker options", function()
         trackerUtils.IsTomTomAvailable = function() return true end
 
         assert.is_true(LoadTab().group_quests.items.group_shortcuts.items.setTomTom.visible)
+    end)
+
+    it("should expose both dungeon marker controls on Forever and refresh the tracker when changed", function()
+        Questie.IsForever = true
+        Questie.db.profile.trackerEnabled = true
+        Questie.db.profile.trackerShowDungeonMarker = true
+        Questie.db.profile.trackerDungeonMarkerPosition = "before"
+        local items = LoadTab().group_quests.items
+        local toggle, position = items.showDungeonMarker, items.dungeonMarkerPosition
+
+        assert.is_true(toggle.visible)
+        assert.is_true(position.visible)
+        assert.is_true(position.enabled())
+        assert.are.same("before", position.get())
+        position.set("after")
+        toggle.set(nil, false)
+
+        assert.are.same("after", position.get())
+        assert.is_false(toggle.get())
+        assert.is_false(position.enabled())
+        assert.spy(tracker.Update).was.called(2)
+
+        Questie.IsForever = false
+        items = LoadTab().group_quests.items
+        assert.is_false(items.showDungeonMarker.visible)
+        assert.is_false(items.dungeonMarkerPosition.visible)
     end)
 
     it("should show the follow super tracking option only when super tracking is supported", function()

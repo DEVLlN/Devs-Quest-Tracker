@@ -88,6 +88,8 @@ function QuestieOptionsDefaults:Load()
             autoTrackQuests = true,
             trackerShowCompleteQuests = true,
             trackerShowQuestLevel = true,
+            trackerShowDungeonMarker = true,
+            trackerDungeonMarkerPosition = "before",
             collapseCompletedQuests = false,
             trackerShowQuestFocusButtons = true,
             trackerShowPlayButtons = true,

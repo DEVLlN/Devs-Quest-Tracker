@@ -16,6 +16,53 @@ local l10n = QuestieLoader:ImportModule("l10n")
 
 local PINNED_GROUP_KEY = "Questie:PinnedQuests"
 
+local DUNGEON_CATEGORY = 2
+-- Forever's Group Finder can omit these activities from its current listing.
+local UNLISTED_DUNGEON_ACTIVITIES = {802, 1607, 1693}
+-- Quest log headers can use the parent instance name instead of a Group Finder wing name,
+-- or use the area name where Group Finder uses a shorter name.
+local DUNGEON_HEADER_AREAS = {717, 796, 1477, 1581, 1583, 2017, 2557, 16919}
+local dungeonHeaders
+
+local function _GetDungeonHeaders()
+    if dungeonHeaders then
+        return dungeonHeaders
+    end
+
+    local groupFinder = _G.C_LFGList
+    local headers = {}
+    for _, areaId in ipairs(DUNGEON_HEADER_AREAS) do
+        local name = C_Map.GetAreaInfo(areaId)
+        if name then
+            headers[name] = true
+        end
+    end
+
+    local function _AddActivity(activityId)
+        local info = groupFinder.GetActivityInfoTable(activityId)
+        if info then
+            if info.fullName and info.fullName ~= "" then
+                headers[info.fullName] = true
+            end
+            if info.shortName and info.shortName ~= "" then
+                headers[info.shortName] = true
+            end
+        end
+    end
+
+    local activities = groupFinder.GetAvailableActivities(DUNGEON_CATEGORY)
+    for _, activityId in ipairs(activities or {}) do
+        _AddActivity(activityId)
+    end
+    for _, activityId in ipairs(UNLISTED_DUNGEON_ACTIVITIES) do
+        _AddActivity(activityId)
+    end
+    if activities and #activities > 0 then
+        dungeonHeaders = headers
+    end
+    return headers
+end
+
 ---@param questId QuestId
 ---@param quest TrackerQuest
 ---@param complete number
@@ -32,7 +79,10 @@ end
 ---@param pinned boolean? Whether to draw quests in the separate pinned group
 function QuestSection.Draw(sortedQuestIds, questDetails, pinned)
     local margins = TrackerLayout.GetMargins()
-    local objectiveColor = Questie.db.profile.trackerColorObjectives
+    local profile = Questie.db.profile
+    local objectiveColor = profile.trackerColorObjectives
+    local markedHeaders = Questie.IsForever and profile.trackerShowDungeonMarker and not pinned
+        and TrackerUtils.UsesQuestZoneGrouping() and _GetDungeonHeaders()
 
     local line
     local currentGroup
@@ -54,6 +104,9 @@ function QuestSection.Draw(sortedQuestIds, questDetails, pinned)
         if _IsQuestShown(questId, quest, complete) then
             if currentGroup ~= groupKey then
                 local title = pinned and l10n("Pinned Quests") or groupKey
+                if markedHeaders and markedHeaders[groupKey] then
+                    title = profile.trackerDungeonMarkerPosition == "after" and (title .. " [D]") or ("[D] " .. title)
+                end
                 line, groupCollapsed = LineBuilder.AddHeader({key = groupKey, text = title, questZone = not pinned})
                 if not line then
                     break

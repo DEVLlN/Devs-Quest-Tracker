@@ -2,6 +2,21 @@
 local l10n = QuestieLoader:ImportModule("l10n")
 
 local trackerUILocales = {
+    ["Show Dungeon Marker"] = {
+        ["enUS"] = true,
+    },
+    ["Show [D] on dungeon category names in the quest tracker."] = {
+        ["enUS"] = true,
+    },
+    ["Dungeon Marker Position"] = {
+        ["enUS"] = true,
+    },
+    ["Before Name"] = {
+        ["enUS"] = true,
+    },
+    ["After Name"] = {
+        ["enUS"] = true,
+    },
     ["Pin to Tracker"] = {
         ["enUS"] = true,
     },

@@ -196,6 +196,39 @@ function QuestieOptionsEngine.tabs.tracker:Initialize()
                             QuestieTracker:Update()
                         end,
                     },
+                    showDungeonMarker = {
+                        type = "checkbox",
+                        order = 2.1,
+                        title = "Show Dungeon Marker",
+                        tooltip = "Show [D] on dungeon category names in the quest tracker.",
+                        width = "half",
+                        newline = true,
+                        visible = Questie.IsForever == true,
+                        get = function() return Questie.db.profile.trackerShowDungeonMarker end,
+                        set = function(_, value)
+                            Questie.db.profile.trackerShowDungeonMarker = value
+                            QuestieTracker:Update()
+                        end,
+                    },
+                    dungeonMarkerPosition = {
+                        type = "dropdown",
+                        order = 2.2,
+                        title = "Dungeon Marker Position",
+                        width = "half",
+                        visible = Questie.IsForever == true,
+                        options = function()
+                            return {before = l10n("Before Name"), after = l10n("After Name")}
+                        end,
+                        enabled = function()
+                            local profile = Questie.db.profile
+                            return profile.trackerEnabled and profile.trackerShowDungeonMarker
+                        end,
+                        get = function() return Questie.db.profile.trackerDungeonMarkerPosition end,
+                        set = function(key)
+                            Questie.db.profile.trackerDungeonMarkerPosition = key
+                            QuestieTracker:Update()
+                        end,
+                    },
                     listAchievementsFirst = {
                         type = "checkbox",
                         order = 4,
